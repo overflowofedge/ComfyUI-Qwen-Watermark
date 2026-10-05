@@ -1,3 +1,4 @@
+import argparse
 import json
 import re
 from pathlib import Path
@@ -9,13 +10,16 @@ from playwright.sync_api import sync_playwright
 sys.stdout.reconfigure(encoding="utf-8")
 root = Path(__file__).resolve().parents[1]
 (root / "diagnostics").mkdir(exist_ok=True)
+parser = argparse.ArgumentParser(description="在 ComfyUI 前端导入并回导工作流")
+parser.add_argument("--server", default="http://127.0.0.1:8188")
+args = parser.parse_args()
 workflow = json.loads((root / "workflows/qwen21_watermark.json").read_text(encoding="utf-8"))
 with sync_playwright() as p:
     browser = p.chromium.launch(executable_path=r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe", headless=True, args=["--disable-gpu"])
     page = browser.new_page(viewport={"width": 1600, "height": 1000})
-    page.goto("http://127.0.0.1:8188", wait_until="domcontentloaded", timeout=60000)
+    page.goto(args.server, wait_until="domcontentloaded", timeout=60000)
     page.wait_for_function("() => !!window.comfyAPI?.app?.app?.canvas", timeout=60000)
-    page.wait_for_function("() => {const app=window.comfyAPI?.app?.app; const types=app?.graph?.constructor?.registered_node_types || window.LiteGraph?.registered_node_types || {}; return ['QWMDetect','QWMRefineMask','QWMPrepare','QWMComposite'].every(name => !!types[name]);}", timeout=30000)
+    page.wait_for_function("() => {const app=window.comfyAPI?.app?.app; const types=app?.graph?.constructor?.registered_node_types || window.LiteGraph?.registered_node_types || {}; return ['QWMDetect','QWMResidualDetect','QWMRefineMask','QWMPrepare','QWMComposite'].every(name => !!types[name]);}", timeout=30000)
     page.get_by_role("button", name=re.compile("运行|Run")).first.wait_for(state="visible", timeout=60000)
     page.wait_for_function("() => window.comfyAPI?.app?.app?.rootGraph?._nodes?.length > 0", timeout=30000)
     result = page.evaluate("""async (workflow) => {

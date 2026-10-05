@@ -1,5 +1,5 @@
 {
-  "id": "bcc2bbb7-e9a4-446d-b58c-a9c8ffbf4a52",
+  "id": "63402bdf-32f2-4c90-ba51-aa17d1d7bc05",
   "revision": 0,
   "last_node_id": 23,
   "last_link_id": 6,
@@ -222,6 +222,11 @@
           "links": [
             3
           ]
+        },
+        {
+          "name": "edit_prompt",
+          "type": "STRING",
+          "links": []
         }
       ],
       "properties": {
@@ -230,20 +235,20 @@
       "widgets_values": [
         "auto_qwen",
         "{\"coordinate_space\":\"pixels\",\"boxes\":[]}",
-        768,
+        1024,
         16,
-        384,
+        512,
         "",
-        0.25
+        0.35
       ],
       "widgets_values_named": {
         "mode": "auto_qwen",
         "boxes_json": "{\"coordinate_space\":\"pixels\",\"boxes\":[]}",
-        "detection_side": 768,
+        "detection_side": 1024,
         "expand": 16,
-        "max_tokens": 384,
+        "max_tokens": 512,
         "hint": "",
-        "padding_ratio": 0.25
+        "padding_ratio": 0.35
       }
     },
     {

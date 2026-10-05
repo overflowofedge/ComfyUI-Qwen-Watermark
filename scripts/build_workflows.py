@@ -1,3 +1,4 @@
+import argparse
 import json
 from pathlib import Path
 import uuid
@@ -6,9 +7,6 @@ import requests
 
 
 ROOT = Path(__file__).resolve().parents[1]
-EDIT_PROMPT = """编辑<image1>。只移除图像中后期叠加的文字水印、平台标记、Logo、矩形粘贴图案、贴纸、马赛克或其他遮挡贴片，依据紧邻区域和主体结构恢复被遮挡的内容。输入中待修复位置可能已经被预处理成粗糙、模糊或拉丝状色块；这是贴片被预先擦除后的痕迹，必须重建为连续、清晰、自然的背景，不能保留该痕迹。待移除的前景叠加物可能是不规则轮廓，甚至像动物、人物或其他真实物体；它一定是需要移除的后期贴片，不是原始场景对象。完整移除该叠加物的所有可见像素，包括内部细节、外轮廓、四肢、耳朵、投影、描边和半透明残留，不要重画或保留其形状。严格保持原图的相机、透视、物体位置、人物身份、轮廓、材质、光照和整体颜色。人物皮肤、服装边缘、道路标线、建筑边缘和纹理应自然连续。保留场景中的真实文字、招牌、服装本身的连续图案和物体商标。不得改变构图，不得移动任何原有物体，不得裁剪或缩放画面，不添加无关内容，不用模糊色块遮盖。输出与输入尺寸相同的完整局部图像。"""
-
-
 def api_graph():
     def node(kind, **inputs):
         return {"class_type": kind, "inputs": inputs}
@@ -17,9 +15,9 @@ def api_graph():
         "1": node("LoadImage", image="qwm_demo_watermarked.png"),
         "2": node("CLIPLoader", clip_name="qwen3vl_8b_int8_convrot.safetensors", type="qwen_image", device="default"),
         "3": node("QWMDetect", image=["1", 0], clip=["2", 0], mode="auto_qwen",
-                  boxes_json='{"coordinate_space":"pixels","boxes":[]}', detection_side=768,
-                  expand=16, max_tokens=384, hint="", padding_ratio=0.25),
-        "4": node("QWMRefineMask", image=["1", 0], mask=["3", 0], boxes_json=["3", 1], method="sam",
+                  boxes_json='{"coordinate_space":"pixels","boxes":[]}', detection_side=1024,
+                  expand=16, max_tokens=512, hint="", padding_ratio=0.35),
+        "4": node("QWMRefineMask", image=["1", 0], mask=["3", 0], boxes_json=["3", 1], method="auto",
                   sam_model="sam_vit_b_01ec64.pth", device="auto", dilation=12, adaptive_dilation=True),
         "5": node("QWMPrepare", image=["1", 0], mask=["4", 0], context_pixels=96, max_side=768,
                   pre_inpaint="telea", inpaint_radius=5),
@@ -28,7 +26,7 @@ def api_graph():
         "8": node("QwenImage21Cache", model=["7", 0], device="off", dtype="default"),
         "9": node("VAELoader", vae_name="qwen_image_2.1_vae_bf16.safetensors"),
         "10": node("TextEncodeQwenImage21", **{"clip": ["2", 0], "vae": ["9", 0],
-                  "images.image_1": ["5", 0], "prompt": EDIT_PROMPT, "negative_prompt": "残留水印，残留贴纸，残留动物或人物，模糊涂抹，接缝，构图变化，物体移位", "resolution": 0}),
+                  "images.image_1": ["5", 0], "prompt": ["3", 3], "negative_prompt": "残留水印，残留贴纸，残留动物或人物，模糊涂抹，接缝，构图变化，物体移位", "resolution": 0}),
         # Qwen Image Edit already returns a size-matched edit latent. Feeding it
         # through generic inpaint conditioning encourages reconstruction of the
         # pasted object; use the native latent and enforce locality at composite.
@@ -47,6 +45,23 @@ def api_graph():
         "23": node("PreviewAny", source=["3", 1]),
         "24": node("PreviewAny", source=["5", 3]),
         "25": node("PreviewAny", source=["4", 2]),
+        "26": node("QWMResidualDetect", image=["14", 0], clip=["2", 0], detection_side=1024,
+                   expand=24, max_tokens=384),
+        "27": node("QWMRefineMask", image=["14", 0], mask=["26", 0], boxes_json=["26", 1], method="auto",
+                   sam_model="sam_vit_b_01ec64.pth", device="auto", dilation=8, adaptive_dilation=False),
+        "28": node("QWMPrepare", image=["14", 0], mask=["27", 0], context_pixels=128, max_side=768,
+                   pre_inpaint="telea", inpaint_radius=3),
+        "29": node("TextEncodeQwenImage21", **{"clip": ["2", 0], "vae": ["9", 0],
+                   "images.image_1": ["28", 0], "prompt": ["26", 3], "negative_prompt": "残留水印，残留贴纸，重影，模糊涂抹，接缝，构图变化，物体移位", "resolution": 0}),
+        "30": node("KSampler", model=["8", 0], positive=["29", 0], negative=["29", 1], latent_image=["29", 2],
+                   seed=240517, steps=16, cfg=1.0, sampler_name="euler_ancestral", scheduler="sgm_uniform", denoise=1.0),
+        "31": node("VAEDecode", samples=["30", 0], vae=["9", 0]),
+        "32": node("QWMComposite", original=["14", 0], edited_crop=["31", 0], mask=["27", 0],
+                   geometry=["28", 2], feather=4, align=True),
+        "33": node("SaveImage", images=["32", 0], filename_prefix="QwenWatermark/restored_verified"),
+        "34": node("SaveImage", images=["32", 1], filename_prefix="QwenWatermark/comparison_verified"),
+        "35": node("PreviewAny", source=["26", 1]),
+        "36": node("SaveImage", images=["26", 2], filename_prefix="QwenWatermark/residual_check"),
     }
 
 
@@ -54,13 +69,20 @@ POSITIONS = {"1": (40, 100), "2": (40, 400), "3": (430, 100), "4": (870, 100), "
              "6": (40, 900), "7": (400, 900), "8": (720, 900), "9": (40, 1100), "10": (1740, 100),
              "12": (2200, 100), "13": (2200, 620), "14": (2580, 100), "15": (3000, 100),
              "16": (3000, 700), "17": (430, 650), "18": (1260, 480), "19": (1260, 850), "20": (1620, 850),
-             "21": (2580, 680), "22": (3400, 100), "23": (430, 1180), "24": (1260, 1180), "25": (870, 1180)}
+             "21": (2580, 680), "22": (3400, 100), "23": (430, 1180), "24": (1260, 1180), "25": (870, 1180),
+             "26": (3400, 700), "27": (3830, 700), "28": (4220, 700), "29": (4670, 700),
+             "30": (5130, 700), "31": (5130, 1160), "32": (5520, 700), "33": (5950, 700),
+             "34": (5950, 1220), "35": (3830, 1280), "36": (3400, 1280)}
 TITLES = {"1": "01 上传原图", "2": "共享本机 Qwen3-VL", "3": "02 自动定位 / 手动改框",
           "4": "03 不规则轮廓细化（SAM）", "5": "04 裁剪并记录坐标", "10": "05 Qwen 2.1 编辑（尺寸匹配）",
           "12": "局部编辑采样", "14": "06 校验对齐并贴回", "15": "保存修复结果",
           "16": "左右对比：原图 / 结果", "17": "定位预览", "18": "送入模型的局部图", "20": "细化遮罩预览",
           "21": "编辑模型的局部输出", "22": "对齐与回贴报告（检查 warning）", "23": "定位坐标（可复制并修改）",
           "24": "裁剪状态（空检测会静默停止）", "25": "SAM 细化状态（失败会回退矩形框）"}
+TITLES.update({"26": "07 第一次修复后检查残留", "27": "08 残留类型自动路由", "28": "09 残留局部裁剪",
+               "29": "10 残留定向编辑", "30": "残留二次采样", "31": "残留局部解码",
+               "32": "11 二次校验并贴回", "33": "保存二次修复结果", "34": "二次修复左右对比",
+               "35": "残留复检报告", "36": "残留复检预览"})
 
 
 def ui_graph(graph, infos):
@@ -122,9 +144,12 @@ def ui_graph(graph, infos):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="根据当前 ComfyUI 节点定义生成 UI/API 工作流")
+    parser.add_argument("--server", default="http://127.0.0.1:8188")
+    args = parser.parse_args()
     session = requests.Session()
     session.trust_env = False
-    response = session.get("http://127.0.0.1:8188/object_info", timeout=30)
+    response = session.get(args.server.rstrip("/") + "/object_info", timeout=30)
     response.raise_for_status()
     infos = response.json()
     folder = ROOT / "workflows"

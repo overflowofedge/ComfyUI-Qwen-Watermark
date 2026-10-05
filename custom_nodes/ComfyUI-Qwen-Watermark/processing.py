@@ -5,6 +5,177 @@ import cv2
 import numpy as np
 
 
+OVERLAY_TYPES = {
+    "text_logo",
+    "translucent_text_logo",
+    "rectangle",
+    "mosaic",
+    "irregular_sticker",
+    "unknown",
+}
+
+
+def normalize_overlay_type(value):
+    text = str(value or "unknown").strip().lower().replace("-", "_").replace(" ", "_")
+    if text in OVERLAY_TYPES:
+        return text
+    if any(token in text for token in ("transparent", "translucent", "stock", "credit", "透明", "半透明")):
+        return "translucent_text_logo"
+    if any(token in text for token in ("mosaic", "pixel", "马赛克")):
+        return "mosaic"
+    if any(token in text for token in ("rectangle", "block", "patch", "矩形", "色块", "方块")):
+        return "rectangle"
+    if any(token in text for token in ("sticker", "pasted_object", "贴纸", "贴片", "遮挡物")):
+        return "irregular_sticker"
+    if any(token in text for token in ("logo", "watermark", "wordmark", "text", "文字", "水印", "平台标记")):
+        return "text_logo"
+    return "unknown"
+
+
+def route_for_overlay(item):
+    overlay_type = normalize_overlay_type(item.get("overlay_type", item.get("type")))
+    if overlay_type in {"text_logo", "translucent_text_logo", "rectangle", "mosaic"}:
+        return "box"
+    if overlay_type == "irregular_sticker":
+        return "sam"
+    requested = str(item.get("mask_method", "")).strip().lower()
+    return requested if requested in {"box", "sam"} else "sam"
+
+
+def _adaptive_padding_ratio(overlay_type, requested):
+    caps = {
+        "text_logo": 0.08,
+        "translucent_text_logo": 0.35,
+        "rectangle": 0.06,
+        "mosaic": 0.06,
+        "irregular_sticker": min(requested, 0.25),
+        "unknown": min(requested, 0.20),
+    }
+    return min(requested, caps[overlay_type])
+
+
+def _box_intersection_ratio(first, second):
+    x0, y0 = max(first[0], second[0]), max(first[1], second[1])
+    x1, y1 = min(first[2], second[2]), min(first[3], second[3])
+    intersection = max(0, x1 - x0) * max(0, y1 - y0)
+    first_area = max(1, (first[2] - first[0]) * (first[3] - first[1]))
+    second_area = max(1, (second[2] - second[0]) * (second[3] - second[1]))
+    return intersection / min(first_area, second_area)
+
+
+def _box_area(box):
+    return max(1, (box[2] - box[0]) * (box[3] - box[1]))
+
+
+def _boxes_are_related(first, second, width, height, overlap_threshold):
+    if _box_intersection_ratio(first, second) >= overlap_threshold:
+        return True
+    horizontal_gap = max(0, max(first[0], second[0]) - min(first[2], second[2]))
+    vertical_gap = max(0, max(first[1], second[1]) - min(first[3], second[3]))
+    horizontal_overlap = max(0, min(first[2], second[2]) - max(first[0], second[0]))
+    vertical_overlap = max(0, min(first[3], second[3]) - max(first[1], second[1]))
+    min_width = max(1, min(first[2] - first[0], second[2] - second[0]))
+    min_height = max(1, min(first[3] - first[1], second[3] - second[1]))
+    same_row = vertical_overlap / min_height >= 0.3 and horizontal_gap <= max(8, width * 0.03)
+    same_column = horizontal_overlap / min_width >= 0.3 and vertical_gap <= max(8, height * 0.03)
+    return same_row or same_column
+
+
+def merge_detection_results(results, width, height, overlap_threshold=0.20):
+    """Merge repeated detections so partial Logo boxes become one complete region."""
+    merged = []
+    for pass_index, result in enumerate(results):
+        for source in result.get("boxes", []):
+            values = source.get("source_bbox", source.get("bbox"))
+            if not isinstance(values, (list, tuple)) or len(values) != 4:
+                continue
+            box = [max(0, int(values[0])), max(0, int(values[1])),
+                   min(width, int(values[2])), min(height, int(values[3]))]
+            if box[2] <= box[0] or box[3] <= box[1]:
+                continue
+            confidence = source.get("confidence", 0.5)
+            confidence = float(confidence) if isinstance(confidence, (int, float)) else 0.5
+            candidate = {
+                "label": str(source.get("label", "watermark")),
+                "bbox": box,
+                "overlay_type": normalize_overlay_type(source.get("overlay_type", source.get("type"))),
+                "confidence": max(0.0, min(1.0, confidence)),
+                "source_passes": [pass_index],
+            }
+            candidate["mask_method"] = route_for_overlay({**source, **candidate})
+            duplicate = next((item for item in merged
+                              if _boxes_are_related(item["bbox"], candidate["bbox"],
+                                                    width, height, overlap_threshold)), None)
+            if duplicate is None:
+                merged.append(candidate)
+                continue
+            later_recovery_is_more_complete = (
+                pass_index > max(duplicate["source_passes"])
+                and _box_area(box) >= _box_area(duplicate["bbox"]) * 1.5
+                and candidate["confidence"] >= duplicate["confidence"] - 0.05
+            )
+            if later_recovery_is_more_complete:
+                duplicate["bbox"] = box
+            else:
+                duplicate["bbox"] = [min(duplicate["bbox"][0], box[0]), min(duplicate["bbox"][1], box[1]),
+                                     max(duplicate["bbox"][2], box[2]), max(duplicate["bbox"][3], box[3])]
+            duplicate["confidence"] = max(duplicate["confidence"], candidate["confidence"])
+            duplicate["source_passes"] = sorted(set(duplicate["source_passes"] + [pass_index]))
+            if duplicate["overlay_type"] == "unknown" or candidate["overlay_type"] == "translucent_text_logo":
+                duplicate["overlay_type"] = candidate["overlay_type"]
+            if "box" in (duplicate["mask_method"], candidate["mask_method"]):
+                duplicate["mask_method"] = "box"
+            if len(candidate["label"]) > len(duplicate["label"]):
+                duplicate["label"] = candidate["label"]
+    return {"coordinate_space": "pixels", "image_size": [width, height], "boxes": merged}
+
+
+def build_edit_prompt(result, hint=""):
+    types = {normalize_overlay_type(item.get("overlay_type")) for item in result.get("boxes", [])}
+    instructions = [
+        "编辑<image1>。只移除检测区域内的后期叠加物，并依据紧邻区域恢复被遮挡的内容。",
+        "严格保持原图的相机、透视、物体位置、人物身份、轮廓、材质、光照、真实文字和整体颜色。不得改变构图、移动物体、裁剪或缩放画面。",
+    ]
+    if types & {"text_logo", "translucent_text_logo"}:
+        instructions.append("完整移除文字水印、平台标记、Logo、网址、所有笔画、描边、阴影和低透明度残留；恢复连续的建筑线条、道路、皮肤、服装或背景纹理。")
+    if types & {"rectangle", "mosaic"}:
+        instructions.append("矩形花纹、纯色色块或马赛克是后期遮挡；移除整个硬边区域和接缝，不得用模糊色块代替背景。")
+    if "irregular_sticker" in types or "unknown" in types:
+        instructions.append("不规则对象是后期贴纸；完整移除其主体、四肢、耳朵、白边、半透明边缘和投影，不要重画或保留其形状。")
+    if hint.strip():
+        instructions.append("补充要求：" + hint.strip())
+    instructions.append("输出与输入尺寸相同的完整局部图像，不添加无关内容。")
+    return "".join(instructions)
+
+
+def calibrate_large_translucent_boxes(result, width, height):
+    """Correct the common Qwen coordinate bias for large central translucent credits."""
+    calibrated = json.loads(json.dumps(result))
+    for item in calibrated.get("boxes", []):
+        if normalize_overlay_type(item.get("overlay_type")) != "translucent_text_logo":
+            continue
+        values = item.get("source_bbox", item.get("bbox"))
+        if not isinstance(values, (list, tuple)) or len(values) != 4:
+            continue
+        x0, y0, x1, y1 = [int(round(float(value))) for value in values]
+        box_width = max(1, x1 - x0)
+        center_x = (x0 + x1) / (2 * max(1, width))
+        center_y = (y0 + y1) / (2 * max(1, height))
+        if box_width < width * 0.18 or not 0.25 <= center_x <= 0.75 or not 0.30 <= center_y <= 0.60:
+            continue
+        shift = min(max(24, round(height * 0.08)), max(0, height - y1))
+        if shift <= 0:
+            continue
+        for key in ("bbox", "source_bbox"):
+            current = item.get(key)
+            if isinstance(current, (list, tuple)) and len(current) == 4:
+                item[key] = [current[0], min(height, current[1] + shift),
+                             current[2], min(height, current[3] + shift)]
+        item["coordinate_calibration"] = {"axis": "y", "shift_px": shift,
+                                           "reason": "large_central_translucent_logo"}
+    return calibrated
+
+
 def _finite_number(value, field):
     if isinstance(value, bool):
         raise ValueError(f"{field} 必须是有限数字。")
@@ -24,7 +195,7 @@ def _integer_value(value, field, minimum=0):
     return int(number)
 
 
-def parse_boxes(text, width, height, expand=6, padding_ratio=0):
+def parse_boxes(text, width, height, expand=6, padding_ratio=0, adaptive_padding=False):
     if not isinstance(text, str):
         raise ValueError("定位结果必须是 JSON 文本。")
     if not isinstance(width, (int, np.integer)) or not isinstance(height, (int, np.integer)) or width <= 0 or height <= 0:
@@ -35,8 +206,9 @@ def parse_boxes(text, width, height, expand=6, padding_ratio=0):
         raise ValueError("padding_ratio 不能为负数。")
     decoder = json.JSONDecoder()
     documents = []
+    list_documents = []
     for index, char in enumerate(text):
-        if char != "{":
+        if char not in "{[":
             continue
         try:
             value, _ = decoder.raw_decode(text[index:])
@@ -44,9 +216,17 @@ def parse_boxes(text, width, height, expand=6, padding_ratio=0):
             continue
         if isinstance(value, dict) and isinstance(value.get("boxes"), list):
             documents.append(value)
-    if not documents:
+        elif isinstance(value, list) and all(
+            isinstance(item, dict) and isinstance(item.get("bbox"), (list, tuple))
+            for item in value
+        ):
+            list_documents.append({"coordinate_space": "xyxy_1000", "boxes": value})
+    if documents:
+        document = documents[-1]
+    elif list_documents:
+        document = list_documents[-1]
+    else:
         raise ValueError('定位结果不是有效 JSON，需要 {"coordinate_space":"xyxy_1000","boxes":[{"bbox":[x0,y0,x1,y1]}]}。')
-    document = documents[-1]
     space = document.get("coordinate_space", "xyxy_1000")
     scales = {"xyxy_1000": (width / 1000, height / 1000), "normalized": (width, height), "pixels": (1, 1)}
     if space not in scales:
@@ -73,13 +253,19 @@ def parse_boxes(text, width, height, expand=6, padding_ratio=0):
         sy0, sy1 = sorted((sy0 * sy, sy1 * sy))
         source_box = [max(0, math.floor(sx0)), max(0, math.floor(sy0)),
                       min(width, math.ceil(sx1)), min(height, math.ceil(sy1))]
-        ex = math.ceil(expand + (x1 - x0) * padding_ratio)
-        ey = math.ceil(expand + (y1 - y0) * padding_ratio)
+        overlay_type = normalize_overlay_type(item.get("overlay_type", item.get("type")))
+        item_padding = _adaptive_padding_ratio(overlay_type, padding_ratio) if adaptive_padding else padding_ratio
+        ex = math.ceil(expand + (x1 - x0) * item_padding)
+        ey = math.ceil(expand + (y1 - y0) * item_padding)
         box = [max(0, math.floor(x0) - ex), max(0, math.floor(y0) - ey),
                min(width, math.ceil(x1) + ex), min(height, math.ceil(y1) + ey)]
         mask[box[1]:box[3], box[0]:box[2]] = 1
+        confidence = item.get("confidence", 0.5)
+        confidence = float(confidence) if isinstance(confidence, (int, float)) else 0.5
         boxes.append({"label": str(item.get("label", "watermark")), "bbox": box,
-                      "source_bbox": source_box})
+                      "source_bbox": source_box, "overlay_type": overlay_type,
+                      "mask_method": route_for_overlay(item),
+                      "confidence": round(max(0.0, min(1.0, confidence)), 4)})
     result = {"coordinate_space": "pixels", "image_size": [width, height], "boxes": boxes}
     return mask, result
 

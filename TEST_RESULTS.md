@@ -1,6 +1,6 @@
 # 本机测试结果
 
-测试日期：2026-10-04。使用本机 ComfyUI 0.38.2、RTX 4060 Laptop 8 GB、64 GB 系统内存，以及已安装的 Qwen Image 2.1 BF16 / Qwen3-VL 8B INT8 ConvRot / Qwen 2.1 VAE。未调用外部生成 API。
+测试日期：2026-10-05。使用本机 ComfyUI 0.38.2、RTX 4060 Laptop 8 GB、64 GB 系统内存，以及已安装的 Qwen Image 2.1 BF16 / Qwen3-VL 8B INT8 ConvRot / Qwen 2.1 VAE。未调用外部生成 API。
 
 ## 自动识别 + 编辑 + 回贴
 
@@ -46,19 +46,29 @@
 
 ## 验证
 
-二十项 Python 测试通过：覆盖原图坐标映射、SAM 框外轮廓恢复、异常大分割限制、自动与手绘遮罩的自适应外扩、补边还原、分离选区外像素保护、轻微平移校正、空选区停止、错误输出尺寸拒绝、错误框输入校验、整数扩边、遮罩尺寸校验、API/检测预览/UI 链接一致性检查，以及分享包文档和公开素材清单。
+三十一项 Python 测试通过：覆盖原图坐标映射、SAM 框外轮廓恢复、异常大分割限制、自动与手绘遮罩的自适应外扩、补边还原、分离选区外像素保护、轻微平移校正、空选区停止、错误输出尺寸拒绝、错误框输入校验、整数扩边、遮罩尺寸校验、残留检测 JSON/Markdown 数组解析、残留不确定状态、自动路由报告、API/检测预览/UI 链接一致性检查，以及分享包文档和公开素材清单。
 
-在本机 ComfyUI 前端实际导入更新后的 24 节点工作流，并导回 API 图；节点参数和连接与提交版本一致，差异为 0。本机安装的三个 Python 节点文件与项目源码逐文件一致。采样使用 `TextEncodeQwenImage21` 输出的尺寸匹配 latent。检测专用工作流的遮罩预览直接连接定位节点，不依赖完整工作流中的 SAM 节点。
+在本机 ComfyUI 前端实际导入更新后的工作流，并导回 API 图；节点参数和连接与提交版本一致，差异为 0。本机安装的五个 Python 节点文件与项目源码逐文件一致。采样使用 `TextEncodeQwenImage21` 输出的尺寸匹配 latent。检测专用工作流的遮罩预览直接连接定位节点，不依赖完整工作流中的 SAM 节点。
 
 本机原先开启 `QwenImage21Cache=cpu` 时，在另一个 Qwen 任务切换到采样器的释放阶段出现一次原生进程中止，堆栈位于 `reset_prefix_cache/free`。交付工作流将缓存设为 `off`，随后连续两次实际采样正常完成。
 
 ## 2026-10-05 补强验证
 
-- `python -m pytest -q`：20 项通过；`python -m compileall -q custom_nodes scripts tests packaging`：通过。
-- ComfyUI 前端实际导入 `qwen21_watermark.json` 并回导 API 图：24 个节点、0 条参数差异。
+- `python -m pytest -q`：31 项通过；`python -m compileall -q custom_nodes scripts tests packaging`：通过。
+- ComfyUI 前端实际导入 `qwen21_watermark.json` 并回导 API 图：工作流节点、参数和连接校验通过，0 条参数差异。
 - 通过 CLI 实际提交检测任务：26.16 秒完成并生成 `detection.png`。
 - 通过 CLI 实际提交完整手动框任务（box 细化、1 步采样用于快速回归）：8.11 秒完成；`restored.png`、`comparison.png`、`detection.png`、`edited_crop.png` 均生成，`outside_mask_max_difference=0`。
 - 自定义节点已重新安装到本机 ComfyUI，项目源码与安装副本逐文件 SHA-256 一致。
+
+### v1.2 自动流程回归
+
+v1.2 将通用扫描和 Logo 专项扫描合并到一次 Qwen3-VL 推理中，避免连续调用 ConvRot 后端造成的 CUDA 断言；随后按 `overlay_type` 自动选择 `box` 或 `sam`。第一次修复后由 `QWMResidualDetect` 检查残片、URL、透明鬼影、贴纸边缘和矩形接缝，只有置信度达到 0.65 才进入最多一次的第二遍局部修复；解析失败会报告 `indeterminate`，不会误报为干净。
+
+- 普通 Logo 检测：`samples/demo_watermarked.png` 返回两处完整 `text_logo`，均为 `box` 路由；最新任务 `877a2b04-61f3-4204-9dce-99b15369ba12`，检测耗时 76.89 秒。
+- 干净图检测：`samples/demo_clean.png` 返回空框，未触发盲修；任务 `c1ad726a-57cb-49a3-9372-216b0375de1f`，检测耗时 82.78 秒。
+- 半透明城市水印：原图 500×747，自动识别为 `translucent_text_logo`，最终安全框 `[101,306,349,429]`，自动走 `box`；残留复检为空，状态 `completed_clean_first_pass`，选区外最大差异 `0`，对齐相关性 `0.99835`。结果见 `outputs/v12_city_calibrated_full/`。
+- 不规则贴纸：无 `hint` 自动识别为 `irregular_sticker`，最终框 `[388,2192,972,2800]`，自动走 `sam`；`confidence=0.99`，结果见 `outputs/v12_detection_sticker_verified/`。
+- 当前实机回归使用隔离端口 `8189` 和独立 SQLite 数据库；原端口 `8188` 的旧进程曾在 CUDA 断言后卡死，属于测试环境状态，不影响节点代码和分享包。
 
 ### 不规则贴纸回归
 

@@ -1,8 +1,8 @@
 {
-  "id": "2f91def3-decf-47d5-9578-e357097568a1",
+  "id": "e47a0d14-99d2-4db1-b54b-3040da2a38d2",
   "revision": 0,
-  "last_node_id": 25,
-  "last_link_id": 33,
+  "last_node_id": 36,
+  "last_link_id": 59,
   "nodes": [
     {
       "id": 1,
@@ -37,7 +37,7 @@
             1,
             3,
             6,
-            19
+            20
           ]
         },
         {
@@ -104,7 +104,9 @@
           "type": "CLIP",
           "links": [
             2,
-            10
+            10,
+            36,
+            42
           ]
         }
       ],
@@ -218,14 +220,21 @@
           "type": "STRING",
           "links": [
             5,
-            31
+            32
           ]
         },
         {
           "name": "preview",
           "type": "IMAGE",
           "links": [
-            25
+            26
+          ]
+        },
+        {
+          "name": "edit_prompt",
+          "type": "STRING",
+          "links": [
+            13
           ]
         }
       ],
@@ -235,20 +244,20 @@
       "widgets_values": [
         "auto_qwen",
         "{\"coordinate_space\":\"pixels\",\"boxes\":[]}",
-        768,
+        1024,
         16,
-        384,
+        512,
         "",
-        0.25
+        0.35
       ],
       "widgets_values_named": {
         "mode": "auto_qwen",
         "boxes_json": "{\"coordinate_space\":\"pixels\",\"boxes\":[]}",
-        "detection_side": 768,
+        "detection_side": 1024,
         "expand": 16,
-        "max_tokens": 384,
+        "max_tokens": 512,
         "hint": "",
-        "padding_ratio": 0.25
+        "padding_ratio": 0.35
       }
     },
     {
@@ -329,8 +338,8 @@
           "type": "MASK",
           "links": [
             7,
-            21,
-            27
+            22,
+            28
           ]
         },
         {
@@ -342,7 +351,7 @@
           "name": "status",
           "type": "STRING",
           "links": [
-            33
+            34
           ]
         }
       ],
@@ -351,14 +360,14 @@
       },
       "widgets_values": [
         null,
-        "sam",
+        "auto",
         "sam_vit_b_01ec64.pth",
         "auto",
         12,
         true
       ],
       "widgets_values_named": {
-        "method": "sam",
+        "method": "auto",
         "sam_model": "sam_vit_b_01ec64.pth",
         "device": "auto",
         "dilation": 12,
@@ -430,7 +439,7 @@
           "type": "IMAGE",
           "links": [
             12,
-            26
+            27
           ]
         },
         {
@@ -442,14 +451,14 @@
           "name": "geometry",
           "type": "QWM_GEOMETRY",
           "links": [
-            22
+            23
           ]
         },
         {
           "name": "status",
           "type": "STRING",
           "links": [
-            32
+            33
           ]
         }
       ],
@@ -615,7 +624,8 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            13
+            14,
+            46
           ]
         }
       ],
@@ -662,7 +672,9 @@
           "type": "VAE",
           "links": [
             11,
-            18
+            19,
+            43,
+            51
           ]
         }
       ],
@@ -710,10 +722,7 @@
         {
           "name": "prompt",
           "type": "STRING",
-          "widget": {
-            "name": "prompt"
-          },
-          "link": null
+          "link": 13
         },
         {
           "name": "negative_prompt",
@@ -737,21 +746,21 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            14
+            15
           ]
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            15
+            16
           ]
         },
         {
           "name": "latent",
           "type": "LATENT",
           "links": [
-            16
+            17
           ]
         }
       ],
@@ -759,12 +768,11 @@
         "Node name for S&R": "TextEncodeQwenImage21"
       },
       "widgets_values": [
-        "编辑<image1>。只移除图像中后期叠加的文字水印、平台标记、Logo、矩形粘贴图案、贴纸、马赛克或其他遮挡贴片，依据紧邻区域和主体结构恢复被遮挡的内容。输入中待修复位置可能已经被预处理成粗糙、模糊或拉丝状色块；这是贴片被预先擦除后的痕迹，必须重建为连续、清晰、自然的背景，不能保留该痕迹。待移除的前景叠加物可能是不规则轮廓，甚至像动物、人物或其他真实物体；它一定是需要移除的后期贴片，不是原始场景对象。完整移除该叠加物的所有可见像素，包括内部细节、外轮廓、四肢、耳朵、投影、描边和半透明残留，不要重画或保留其形状。严格保持原图的相机、透视、物体位置、人物身份、轮廓、材质、光照和整体颜色。人物皮肤、服装边缘、道路标线、建筑边缘和纹理应自然连续。保留场景中的真实文字、招牌、服装本身的连续图案和物体商标。不得改变构图，不得移动任何原有物体，不得裁剪或缩放画面，不添加无关内容，不用模糊色块遮盖。输出与输入尺寸相同的完整局部图像。",
+        null,
         "残留水印，残留贴纸，残留动物或人物，模糊涂抹，接缝，构图变化，物体移位",
         0
       ],
       "widgets_values_named": {
-        "prompt": "编辑<image1>。只移除图像中后期叠加的文字水印、平台标记、Logo、矩形粘贴图案、贴纸、马赛克或其他遮挡贴片，依据紧邻区域和主体结构恢复被遮挡的内容。输入中待修复位置可能已经被预处理成粗糙、模糊或拉丝状色块；这是贴片被预先擦除后的痕迹，必须重建为连续、清晰、自然的背景，不能保留该痕迹。待移除的前景叠加物可能是不规则轮廓，甚至像动物、人物或其他真实物体；它一定是需要移除的后期贴片，不是原始场景对象。完整移除该叠加物的所有可见像素，包括内部细节、外轮廓、四肢、耳朵、投影、描边和半透明残留，不要重画或保留其形状。严格保持原图的相机、透视、物体位置、人物身份、轮廓、材质、光照和整体颜色。人物皮肤、服装边缘、道路标线、建筑边缘和纹理应自然连续。保留场景中的真实文字、招牌、服装本身的连续图案和物体商标。不得改变构图，不得移动任何原有物体，不得裁剪或缩放画面，不添加无关内容，不用模糊色块遮盖。输出与输入尺寸相同的完整局部图像。",
         "negative_prompt": "残留水印，残留贴纸，残留动物或人物，模糊涂抹，接缝，构图变化，物体移位",
         "resolution": 0
       }
@@ -788,22 +796,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 13
+          "link": 14
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 14
+          "link": 15
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 15
+          "link": 16
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 16
+          "link": 17
         },
         {
           "name": "seed",
@@ -859,7 +867,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            17
+            18
           ]
         }
       ],
@@ -904,12 +912,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 17
+          "link": 18
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 18
+          "link": 19
         }
       ],
       "outputs": [
@@ -917,8 +925,8 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            20,
-            29
+            21,
+            30
           ]
         }
       ],
@@ -947,22 +955,22 @@
         {
           "name": "original",
           "type": "IMAGE",
-          "link": 19
+          "link": 20
         },
         {
           "name": "edited_crop",
           "type": "IMAGE",
-          "link": 20
+          "link": 21
         },
         {
           "name": "mask",
           "type": "MASK",
-          "link": 21
+          "link": 22
         },
         {
           "name": "geometry",
           "type": "QWM_GEOMETRY",
-          "link": 22
+          "link": 23
         },
         {
           "name": "feather",
@@ -986,21 +994,25 @@
           "name": "restored_image",
           "type": "IMAGE",
           "links": [
-            23
+            24,
+            35,
+            37,
+            40,
+            52
           ]
         },
         {
           "name": "comparison",
           "type": "IMAGE",
           "links": [
-            24
+            25
           ]
         },
         {
           "name": "report",
           "type": "STRING",
           "links": [
-            30
+            31
           ]
         }
       ],
@@ -1035,7 +1047,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 23
+          "link": 24
         },
         {
           "name": "filename_prefix",
@@ -1082,7 +1094,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 24
+          "link": 25
         },
         {
           "name": "filename_prefix",
@@ -1129,7 +1141,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 25
+          "link": 26
         },
         {
           "name": "filename_prefix",
@@ -1176,7 +1188,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 26
+          "link": 27
         }
       ],
       "outputs": [
@@ -1211,7 +1223,7 @@
         {
           "name": "mask",
           "type": "MASK",
-          "link": 27
+          "link": 28
         }
       ],
       "outputs": [
@@ -1219,7 +1231,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            28
+            29
           ]
         }
       ],
@@ -1248,7 +1260,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 28
+          "link": 29
         }
       ],
       "outputs": [
@@ -1283,7 +1295,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 29
+          "link": 30
         },
         {
           "name": "filename_prefix",
@@ -1330,7 +1342,7 @@
         {
           "name": "source",
           "type": "STRING",
-          "link": 30
+          "link": 31
         }
       ],
       "outputs": [
@@ -1365,7 +1377,7 @@
         {
           "name": "source",
           "type": "STRING",
-          "link": 31
+          "link": 32
         }
       ],
       "outputs": [
@@ -1400,7 +1412,7 @@
         {
           "name": "source",
           "type": "STRING",
-          "link": 32
+          "link": 33
         }
       ],
       "outputs": [
@@ -1435,7 +1447,7 @@
         {
           "name": "source",
           "type": "STRING",
-          "link": 33
+          "link": 34
         }
       ],
       "outputs": [
@@ -1450,6 +1462,823 @@
       },
       "widgets_values": [],
       "widgets_values_named": {}
+    },
+    {
+      "id": 26,
+      "type": "QWMResidualDetect",
+      "title": "07 第一次修复后检查残留",
+      "pos": [
+        3400,
+        700
+      ],
+      "size": [
+        310,
+        180
+      ],
+      "flags": {},
+      "order": 24,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 35
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 36
+        },
+        {
+          "name": "detection_side",
+          "type": "INT",
+          "widget": {
+            "name": "detection_side"
+          },
+          "link": null
+        },
+        {
+          "name": "expand",
+          "type": "INT",
+          "widget": {
+            "name": "expand"
+          },
+          "link": null
+        },
+        {
+          "name": "max_tokens",
+          "type": "INT",
+          "widget": {
+            "name": "max_tokens"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "residual_mask",
+          "type": "MASK",
+          "links": [
+            38
+          ]
+        },
+        {
+          "name": "boxes_json",
+          "type": "STRING",
+          "links": [
+            39,
+            58
+          ]
+        },
+        {
+          "name": "preview",
+          "type": "IMAGE",
+          "links": [
+            59
+          ]
+        },
+        {
+          "name": "edit_prompt",
+          "type": "STRING",
+          "links": [
+            45
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "QWMResidualDetect"
+      },
+      "widgets_values": [
+        1024,
+        24,
+        384
+      ],
+      "widgets_values_named": {
+        "detection_side": 1024,
+        "expand": 24,
+        "max_tokens": 384
+      }
+    },
+    {
+      "id": 27,
+      "type": "QWMRefineMask",
+      "title": "08 残留类型自动路由",
+      "pos": [
+        3830,
+        700
+      ],
+      "size": [
+        310,
+        510
+      ],
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 37
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 38
+        },
+        {
+          "name": "boxes_json",
+          "type": "STRING",
+          "link": 39
+        },
+        {
+          "name": "method",
+          "type": "COMBO",
+          "widget": {
+            "name": "method"
+          },
+          "link": null
+        },
+        {
+          "name": "sam_model",
+          "type": "STRING",
+          "widget": {
+            "name": "sam_model"
+          },
+          "link": null
+        },
+        {
+          "name": "device",
+          "type": "COMBO",
+          "widget": {
+            "name": "device"
+          },
+          "link": null
+        },
+        {
+          "name": "dilation",
+          "type": "INT",
+          "widget": {
+            "name": "dilation"
+          },
+          "link": null
+        },
+        {
+          "name": "adaptive_dilation",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "adaptive_dilation"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "refined_mask",
+          "type": "MASK",
+          "links": [
+            41,
+            54
+          ]
+        },
+        {
+          "name": "preview",
+          "type": "IMAGE",
+          "links": []
+        },
+        {
+          "name": "status",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "QWMRefineMask"
+      },
+      "widgets_values": [
+        null,
+        "auto",
+        "sam_vit_b_01ec64.pth",
+        "auto",
+        8,
+        false
+      ],
+      "widgets_values_named": {
+        "method": "auto",
+        "sam_model": "sam_vit_b_01ec64.pth",
+        "device": "auto",
+        "dilation": 8,
+        "adaptive_dilation": false
+      }
+    },
+    {
+      "id": 28,
+      "type": "QWMPrepare",
+      "title": "09 残留局部裁剪",
+      "pos": [
+        4220,
+        700
+      ],
+      "size": [
+        310,
+        180
+      ],
+      "flags": {},
+      "order": 26,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 40
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 41
+        },
+        {
+          "name": "context_pixels",
+          "type": "INT",
+          "widget": {
+            "name": "context_pixels"
+          },
+          "link": null
+        },
+        {
+          "name": "max_side",
+          "type": "INT",
+          "widget": {
+            "name": "max_side"
+          },
+          "link": null
+        },
+        {
+          "name": "pre_inpaint",
+          "type": "COMBO",
+          "widget": {
+            "name": "pre_inpaint"
+          },
+          "link": null
+        },
+        {
+          "name": "inpaint_radius",
+          "type": "INT",
+          "widget": {
+            "name": "inpaint_radius"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "reference_crop",
+          "type": "IMAGE",
+          "links": [
+            44
+          ]
+        },
+        {
+          "name": "crop_mask",
+          "type": "MASK",
+          "links": []
+        },
+        {
+          "name": "geometry",
+          "type": "QWM_GEOMETRY",
+          "links": [
+            55
+          ]
+        },
+        {
+          "name": "status",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "QWMPrepare"
+      },
+      "widgets_values": [
+        128,
+        768,
+        "telea",
+        3
+      ],
+      "widgets_values_named": {
+        "context_pixels": 128,
+        "max_side": 768,
+        "pre_inpaint": "telea",
+        "inpaint_radius": 3
+      }
+    },
+    {
+      "id": 29,
+      "type": "TextEncodeQwenImage21",
+      "title": "10 残留定向编辑",
+      "pos": [
+        4670,
+        700
+      ],
+      "size": [
+        400,
+        510
+      ],
+      "flags": {},
+      "order": 27,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 42
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 43
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "link": 44
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 45
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "negative_prompt"
+          },
+          "link": null
+        },
+        {
+          "name": "resolution",
+          "type": "INT",
+          "widget": {
+            "name": "resolution"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            47
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            48
+          ]
+        },
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            49
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "TextEncodeQwenImage21"
+      },
+      "widgets_values": [
+        null,
+        "残留水印，残留贴纸，重影，模糊涂抹，接缝，构图变化，物体移位",
+        0
+      ],
+      "widgets_values_named": {
+        "negative_prompt": "残留水印，残留贴纸，重影，模糊涂抹，接缝，构图变化，物体移位",
+        "resolution": 0
+      }
+    },
+    {
+      "id": 30,
+      "type": "KSampler",
+      "title": "残留二次采样",
+      "pos": [
+        5130,
+        700
+      ],
+      "size": [
+        310,
+        180
+      ],
+      "flags": {},
+      "order": 28,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 46
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 47
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 48
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 49
+        },
+        {
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        },
+        {
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": null
+        },
+        {
+          "name": "sampler_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler_name"
+          },
+          "link": null
+        },
+        {
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": null
+        },
+        {
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            50
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        240517,
+        "fixed",
+        16,
+        1.0,
+        "euler_ancestral",
+        "sgm_uniform",
+        1.0
+      ],
+      "widgets_values_named": {
+        "seed": 240517,
+        "control_after_generate": "fixed",
+        "steps": 16,
+        "cfg": 1.0,
+        "sampler_name": "euler_ancestral",
+        "scheduler": "sgm_uniform",
+        "denoise": 1.0
+      }
+    },
+    {
+      "id": 31,
+      "type": "VAEDecode",
+      "title": "残留局部解码",
+      "pos": [
+        5130,
+        1160
+      ],
+      "size": [
+        310,
+        180
+      ],
+      "flags": {},
+      "order": 29,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 50
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 51
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            53
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    },
+    {
+      "id": 32,
+      "type": "QWMComposite",
+      "title": "11 二次校验并贴回",
+      "pos": [
+        5520,
+        700
+      ],
+      "size": [
+        310,
+        180
+      ],
+      "flags": {},
+      "order": 30,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "original",
+          "type": "IMAGE",
+          "link": 52
+        },
+        {
+          "name": "edited_crop",
+          "type": "IMAGE",
+          "link": 53
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 54
+        },
+        {
+          "name": "geometry",
+          "type": "QWM_GEOMETRY",
+          "link": 55
+        },
+        {
+          "name": "feather",
+          "type": "INT",
+          "widget": {
+            "name": "feather"
+          },
+          "link": null
+        },
+        {
+          "name": "align",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "align"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "restored_image",
+          "type": "IMAGE",
+          "links": [
+            56
+          ]
+        },
+        {
+          "name": "comparison",
+          "type": "IMAGE",
+          "links": [
+            57
+          ]
+        },
+        {
+          "name": "report",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "QWMComposite"
+      },
+      "widgets_values": [
+        4,
+        true
+      ],
+      "widgets_values_named": {
+        "feather": 4,
+        "align": true
+      }
+    },
+    {
+      "id": 33,
+      "type": "SaveImage",
+      "title": "保存二次修复结果",
+      "pos": [
+        5950,
+        700
+      ],
+      "size": [
+        310,
+        440
+      ],
+      "flags": {},
+      "order": 31,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 56
+        },
+        {
+          "name": "filename_prefix",
+          "type": "STRING",
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "QwenWatermark/restored_verified"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "QwenWatermark/restored_verified"
+      }
+    },
+    {
+      "id": 34,
+      "type": "SaveImage",
+      "title": "二次修复左右对比",
+      "pos": [
+        5950,
+        1220
+      ],
+      "size": [
+        310,
+        440
+      ],
+      "flags": {},
+      "order": 32,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 57
+        },
+        {
+          "name": "filename_prefix",
+          "type": "STRING",
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "QwenWatermark/comparison_verified"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "QwenWatermark/comparison_verified"
+      }
+    },
+    {
+      "id": 35,
+      "type": "PreviewAny",
+      "title": "残留复检报告",
+      "pos": [
+        3830,
+        1280
+      ],
+      "size": [
+        310,
+        440
+      ],
+      "flags": {},
+      "order": 33,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "STRING",
+          "link": 58
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    },
+    {
+      "id": 36,
+      "type": "SaveImage",
+      "title": "残留复检预览",
+      "pos": [
+        3400,
+        1280
+      ],
+      "size": [
+        310,
+        440
+      ],
+      "flags": {},
+      "order": 34,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 59
+        },
+        {
+          "name": "filename_prefix",
+          "type": "STRING",
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "QwenWatermark/residual_check"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "QwenWatermark/residual_check"
+      }
     }
   ],
   "links": [
@@ -1551,6 +2380,14 @@
     ],
     [
       13,
+      3,
+      3,
+      10,
+      3,
+      "STRING"
+    ],
+    [
+      14,
       8,
       0,
       12,
@@ -1558,7 +2395,7 @@
       "MODEL"
     ],
     [
-      14,
+      15,
       10,
       0,
       12,
@@ -1566,7 +2403,7 @@
       "CONDITIONING"
     ],
     [
-      15,
+      16,
       10,
       1,
       12,
@@ -1574,7 +2411,7 @@
       "CONDITIONING"
     ],
     [
-      16,
+      17,
       10,
       2,
       12,
@@ -1582,7 +2419,7 @@
       "LATENT"
     ],
     [
-      17,
+      18,
       12,
       0,
       13,
@@ -1590,7 +2427,7 @@
       "LATENT"
     ],
     [
-      18,
+      19,
       9,
       0,
       13,
@@ -1598,7 +2435,7 @@
       "VAE"
     ],
     [
-      19,
+      20,
       1,
       0,
       14,
@@ -1606,7 +2443,7 @@
       "IMAGE"
     ],
     [
-      20,
+      21,
       13,
       0,
       14,
@@ -1614,7 +2451,7 @@
       "IMAGE"
     ],
     [
-      21,
+      22,
       4,
       0,
       14,
@@ -1622,7 +2459,7 @@
       "MASK"
     ],
     [
-      22,
+      23,
       5,
       2,
       14,
@@ -1630,7 +2467,7 @@
       "QWM_GEOMETRY"
     ],
     [
-      23,
+      24,
       14,
       0,
       15,
@@ -1638,7 +2475,7 @@
       "IMAGE"
     ],
     [
-      24,
+      25,
       14,
       1,
       16,
@@ -1646,7 +2483,7 @@
       "IMAGE"
     ],
     [
-      25,
+      26,
       3,
       2,
       17,
@@ -1654,7 +2491,7 @@
       "IMAGE"
     ],
     [
-      26,
+      27,
       5,
       0,
       18,
@@ -1662,7 +2499,7 @@
       "IMAGE"
     ],
     [
-      27,
+      28,
       4,
       0,
       19,
@@ -1670,7 +2507,7 @@
       "MASK"
     ],
     [
-      28,
+      29,
       19,
       0,
       20,
@@ -1678,7 +2515,7 @@
       "IMAGE"
     ],
     [
-      29,
+      30,
       13,
       0,
       21,
@@ -1686,7 +2523,7 @@
       "IMAGE"
     ],
     [
-      30,
+      31,
       14,
       2,
       22,
@@ -1694,7 +2531,7 @@
       "STRING"
     ],
     [
-      31,
+      32,
       3,
       1,
       23,
@@ -1702,7 +2539,7 @@
       "STRING"
     ],
     [
-      32,
+      33,
       5,
       3,
       24,
@@ -1710,12 +2547,212 @@
       "STRING"
     ],
     [
-      33,
+      34,
       4,
       2,
       25,
       0,
       "STRING"
+    ],
+    [
+      35,
+      14,
+      0,
+      26,
+      0,
+      "IMAGE"
+    ],
+    [
+      36,
+      2,
+      0,
+      26,
+      1,
+      "CLIP"
+    ],
+    [
+      37,
+      14,
+      0,
+      27,
+      0,
+      "IMAGE"
+    ],
+    [
+      38,
+      26,
+      0,
+      27,
+      1,
+      "MASK"
+    ],
+    [
+      39,
+      26,
+      1,
+      27,
+      2,
+      "STRING"
+    ],
+    [
+      40,
+      14,
+      0,
+      28,
+      0,
+      "IMAGE"
+    ],
+    [
+      41,
+      27,
+      0,
+      28,
+      1,
+      "MASK"
+    ],
+    [
+      42,
+      2,
+      0,
+      29,
+      0,
+      "CLIP"
+    ],
+    [
+      43,
+      9,
+      0,
+      29,
+      1,
+      "VAE"
+    ],
+    [
+      44,
+      28,
+      0,
+      29,
+      2,
+      "IMAGE"
+    ],
+    [
+      45,
+      26,
+      3,
+      29,
+      3,
+      "STRING"
+    ],
+    [
+      46,
+      8,
+      0,
+      30,
+      0,
+      "MODEL"
+    ],
+    [
+      47,
+      29,
+      0,
+      30,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      48,
+      29,
+      1,
+      30,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      49,
+      29,
+      2,
+      30,
+      3,
+      "LATENT"
+    ],
+    [
+      50,
+      30,
+      0,
+      31,
+      0,
+      "LATENT"
+    ],
+    [
+      51,
+      9,
+      0,
+      31,
+      1,
+      "VAE"
+    ],
+    [
+      52,
+      14,
+      0,
+      32,
+      0,
+      "IMAGE"
+    ],
+    [
+      53,
+      31,
+      0,
+      32,
+      1,
+      "IMAGE"
+    ],
+    [
+      54,
+      27,
+      0,
+      32,
+      2,
+      "MASK"
+    ],
+    [
+      55,
+      28,
+      2,
+      32,
+      3,
+      "QWM_GEOMETRY"
+    ],
+    [
+      56,
+      32,
+      0,
+      33,
+      0,
+      "IMAGE"
+    ],
+    [
+      57,
+      32,
+      1,
+      34,
+      0,
+      "IMAGE"
+    ],
+    [
+      58,
+      26,
+      1,
+      35,
+      0,
+      "STRING"
+    ],
+    [
+      59,
+      26,
+      2,
+      36,
+      0,
+      "IMAGE"
     ]
   ],
   "groups": [],

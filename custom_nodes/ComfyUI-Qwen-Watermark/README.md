@@ -4,7 +4,8 @@ Custom nodes used by the Qwen Image 2.1 watermark-removal workflow.
 
 ## Nodes
 
-- `QWMDetect`: automatic Qwen3-VL detection, manual boxes, or a painted mask.
+- `QWMDetect`: one Qwen3-VL inference with general and Logo-recovery scan instructions, automatic type classification, manual boxes, or a painted mask.
+- `QWMResidualDetect`: post-edit residual check for watermark fragments, translucent ghosts, and seams.
 - `QWMRefineMask`: SAM contour refinement and adaptive edge/shadow expansion.
 - `QWMPrepare`: local crop, padding, and optional OpenCV pre-inpainting.
 - `QWMComposite`: alignment, inward feathering, and protected paste-back.

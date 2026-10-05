@@ -37,11 +37,25 @@ def test_full_workflow_uses_qwen_native_edit_latent_and_irregular_defaults():
     assert graph["12"]["inputs"]["positive"] == ["10", 0]
     assert graph["12"]["inputs"]["negative"] == ["10", 1]
     assert graph["12"]["inputs"]["latent_image"] == ["10", 2]
-    assert graph["4"]["inputs"]["method"] == "sam"
+    assert graph["3"]["inputs"]["detection_side"] == 1024
+    assert graph["3"]["inputs"]["max_tokens"] == 512
+    assert graph["4"]["inputs"]["method"] == "auto"
     assert graph["4"]["inputs"]["dilation"] == 12
     assert graph["4"]["inputs"]["adaptive_dilation"] is True
     assert graph["5"]["inputs"]["pre_inpaint"] == "telea"
     assert graph["5"]["inputs"]["inpaint_radius"] == 5
+    assert graph["10"]["inputs"]["prompt"] == ["3", 3]
+
+
+def test_full_workflow_rechecks_residuals_and_runs_second_pass_when_needed():
+    graph = _load("qwen21_watermark.api.json")
+    assert graph["26"]["class_type"] == "QWMResidualDetect"
+    assert graph["26"]["inputs"]["image"] == ["14", 0]
+    assert graph["27"]["inputs"]["method"] == "auto"
+    assert graph["28"]["inputs"]["image"] == ["14", 0]
+    assert graph["29"]["inputs"]["prompt"] == ["26", 3]
+    assert graph["32"]["inputs"]["original"] == ["14", 0]
+    assert graph["33"]["inputs"]["images"] == ["32", 0]
 
 
 def test_ui_workflow_links_are_bidirectional():

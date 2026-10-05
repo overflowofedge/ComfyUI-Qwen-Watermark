@@ -26,11 +26,11 @@
       ],
       "mode": "auto_qwen",
       "boxes_json": "{\"coordinate_space\":\"pixels\",\"boxes\":[]}",
-      "detection_side": 768,
+      "detection_side": 1024,
       "expand": 16,
-      "max_tokens": 384,
+      "max_tokens": 512,
       "hint": "",
-      "padding_ratio": 0.25
+      "padding_ratio": 0.35
     }
   },
   "17": {

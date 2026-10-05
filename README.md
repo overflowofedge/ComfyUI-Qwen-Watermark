@@ -1,6 +1,6 @@
 # ComfyUI Qwen Watermark
 
-一套在本机 ComfyUI 运行的去水印工作流：先用 Qwen3-VL 定位文字、Logo、马赛克、矩形色块和贴纸，再用 SAM 细化不规则轮廓，给 Qwen Image 2.1 提供带上下文的局部图，最后只把选区贴回原图。未被遮罩覆盖的像素会被逐像素保护。
+一套在本机 ComfyUI 运行的去水印工作流：Qwen3-VL 会在一次推理中完成通用扫描和 Logo 专项复核，自动识别文字、半透明 Logo、马赛克、矩形色块和不规则贴纸，再按类型选择矩形框或 SAM，交给 Qwen Image 2.1 做局部修复。第一次修复后还会自动检查残留，并在需要时最多追加一次局部修复；未被遮罩覆盖的像素会被逐像素保护。
 
 > 仅处理你拥有版权或已获得授权的图片。遮挡下完全不存在的真实像素无法被恢复，模型只能根据上下文生成合理内容。
 
@@ -25,9 +25,9 @@
 
 | 遮挡类型 | 推荐路径 | 关键设置 |
 | --- | --- | --- |
-| 普通文字、Logo、小型半透明水印 | `auto_qwen` + `sam` | `dilation=8~12`，自适应外扩开启 |
-| 马赛克、矩形花纹、纯色色块 | `manual_boxes` + `box` | 手动框覆盖完整硬边，`expand=16~24` |
-| 不规则贴纸、动物/人物贴片 | `manual_boxes` + `sam` | `dilation=12`，大型贴纸自动增至约 `32~48` |
+| 普通文字、Logo、小型半透明水印 | `auto_qwen` + `auto` | Logo 专项复扫，自动走 `box`，按类型限制扩边 |
+| 马赛克、矩形花纹、纯色色块 | `auto_qwen` + `auto` | 自动走 `box`；误检时可用手动框修正 |
+| 不规则贴纸、动物/人物贴片 | `auto_qwen` + `auto` | 自动走 `sam`，大型贴纸自适应外扩 |
 | 边缘复杂或贴近必须保留的细节 | `manual_mask` | 画白需要移除的区域，必要时关闭自适应外扩 |
 
 工作流不会把整张图交给编辑模型，而是保留上下文的局部裁剪；`QWMComposite` 只在最终遮罩内合成，并检查选区外最大像素差。详细参数、提示词模板和故障排查见 [参数与提示词指南](docs/参数与提示词.md)。
@@ -47,7 +47,7 @@
 
 ### 2. 安装自定义节点
 
-`QWMDetect`、`QWMRefineMask`、`QWMPrepare`、`QWMComposite` 是本项目新增的自定义节点，不是 ComfyUI 内置节点。只导入 JSON 会出现红色缺失节点；请运行：
+`QWMDetect`、`QWMResidualDetect`、`QWMRefineMask`、`QWMPrepare`、`QWMComposite` 是本项目新增的五个自定义节点，不是 ComfyUI 内置节点。只导入 JSON 会出现红色缺失节点；请运行：
 
 ```powershell
 python scripts/install_nodes.py --comfy-root "E:\ComfyUI-aki-v3\ComfyUI-aki-v3\ComfyUI"
@@ -59,8 +59,8 @@ python scripts/install_nodes.py --comfy-root "E:\ComfyUI-aki-v3\ComfyUI-aki-v3\C
 
 1. 导入 `workflows/qwen21_watermark.json`。
 2. 在“01 上传原图”节点重新选择图片。
-3. 普通水印先保持 `auto_qwen`；矩形色块切换到 `manual_boxes + box`；不规则贴纸用 `manual_boxes + sam`，边缘复杂时用 `manual_mask`。
-4. 运行后查看“定位预览”“细化遮罩预览”“左右对比”和报告节点。
+3. 默认保持 `auto_qwen + auto`，工作流会按遮挡类型自动选择 `box` 或 `sam`；仅在低置信度、误检或漏检时改用手动框/遮罩。
+4. 运行后查看“定位预览”“细化遮罩预览”“残留复检”和左右对比。
 
 只想确认自动框选时，导入 `workflows/qwen_watermark_detection.json`。命令行批处理示例：
 
@@ -75,14 +75,14 @@ python scripts/run_workflow.py samples\demo_watermarked.png --detect-only --outp
 - 普通文字 + Logo 回归：两处 `effective_dilation=12`，选区外最大差异 `0`。
 - 不规则贴纸回归：SAM 允许轮廓在安全边界内越过检测框，自动外扩示例为 `32 px`，选区外最大差异 `0`。
 - 手绘遮罩回归：大型区域自适应外扩 `38 px`，选区外最大差异 `0`。
-- Python 回归测试：`20 passed`。
+- Python 回归测试：`31 passed`。
 
 完整实测数据见 [`TEST_RESULTS.md`](TEST_RESULTS.md)。
 
 ## 项目结构
 
 ```text
-custom_nodes/ComfyUI-Qwen-Watermark/   四个自定义节点
+custom_nodes/ComfyUI-Qwen-Watermark/   五个自定义节点
 workflows/                              可导入的 UI/API 工作流
 scripts/                                安装、运行、构建和验证脚本
 packaging/                              分享包说明、安装器和许可证

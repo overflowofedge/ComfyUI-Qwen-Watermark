@@ -41,9 +41,9 @@ def main():
     parser.add_argument("--steps", type=_positive_int, default=20)
     parser.add_argument("--seed", type=int, default=802146)
     parser.add_argument("--max-side", type=_positive_int, default=768)
-    parser.add_argument("--detection-side", type=_positive_int, default=768)
-    parser.add_argument("--mask-method", choices=["sam", "box"], default="sam",
-                        help="不规则贴片用 SAM 轮廓；模型不可用时自动回退 box")
+    parser.add_argument("--detection-side", type=_positive_int, default=1024)
+    parser.add_argument("--mask-method", choices=["auto", "sam", "box"], default="auto",
+                        help="auto 按检测类型路由；也可强制所有区域使用 SAM 或矩形框")
     parser.add_argument("--sam-device", choices=["auto", "cpu", "cuda"], default="auto")
     parser.add_argument("--sam-dilation", type=_nonnegative_int, default=12, help="SAM 轮廓向外补偿的基础像素数")
     parser.add_argument("--fixed-sam-dilation", action="store_true",
@@ -92,8 +92,6 @@ def main():
         raise RuntimeError("ComfyUI 上传接口没有返回文件名。")
     graph["1"]["inputs"]["image"] = "/".join(x for x in [upload.get("subfolder", ""), upload["name"]] if x)
     graph["3"]["inputs"].update(hint=args.hint, detection_side=args.detection_side)
-    if args.hint and not args.detect_only:
-        graph["10"]["inputs"]["prompt"] += "\n用户对检测区域的补充要求：" + args.hint.strip()
     if args.boxes:
         graph["3"]["inputs"].update(mode="manual_boxes", boxes_json=args.boxes.read_text(encoding="utf-8"))
     if not args.detect_only:
@@ -158,7 +156,8 @@ def main():
             raise RuntimeError(f"ComfyUI {kind}: " + json.dumps(payload, ensure_ascii=False))
     if not history.get("status", {}).get("completed"):
         raise RuntimeError("ComfyUI 未成功完成；请检查 history.json。")
-    labels = {"15": "restored", "16": "comparison", "17": "detection", "21": "edited_crop"}
+    labels = {"15": "restored_first_pass", "16": "comparison_first_pass", "17": "detection",
+              "21": "edited_crop", "33": "restored", "34": "comparison", "36": "residual_check"}
     files = {}
     for node_id, label in labels.items():
         for index, image in enumerate(history.get("outputs", {}).get(node_id, {}).get("images", [])):
@@ -171,7 +170,9 @@ def main():
             path.write_bytes(response.content)
             files[label] = str(path)
     reports = {}
-    for node_id, key in [("3", "detection"), ("4", "refine"), ("5", "prepare"), ("14", "composite")]:
+    for node_id, key in [("3", "detection"), ("4", "refine"), ("5", "prepare"), ("14", "composite"),
+                         ("26", "residual_detection"), ("27", "residual_refine"),
+                         ("28", "residual_prepare"), ("32", "residual_composite")]:
         texts = history.get("outputs", {}).get(node_id, {}).get("text", [])
         if texts:
             reports[key] = json.loads(texts[0])
@@ -182,6 +183,14 @@ def main():
         print(reports["prepare"]["message"], flush=True)
     elif "restored" in files:
         reports["status"] = "completed"
+    elif "restored_first_pass" in files and reports.get("residual_detection", {}).get("status") == "clean":
+        files["restored"] = files["restored_first_pass"]
+        files["comparison"] = files["comparison_first_pass"]
+        reports["status"] = "completed_clean_first_pass"
+    elif "restored_first_pass" in files and "residual_detection" not in reports:
+        files["restored"] = files["restored_first_pass"]
+        files["comparison"] = files["comparison_first_pass"]
+        reports["status"] = "completed_first_pass_unverified"
     else:
         raise RuntimeError("ComfyUI 执行结束但没有生成修复图；请检查 history.json。")
     reports["elapsed_seconds"] = round(time.monotonic() - start, 2)

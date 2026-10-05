@@ -1,11 +1,11 @@
-# Qwen Image 2.1 去水印工作流 1.1.0
+# Qwen Image 2.1 去水印工作流 1.2.0
 
-这是可分享的本机 ComfyUI 工作流包。它支持普通文字与 Logo、马赛克、矩形花纹或纯色色块、不规则贴纸，以及手绘遮罩。完整参数表和提示词模板见 [`docs/参数与提示词.md`](docs/参数与提示词.md)。
+这是可分享的本机 ComfyUI 工作流包。它会自动识别普通/半透明文字与 Logo、马赛克、矩形色块和不规则贴纸，自动选择 `box` 或 SAM，并在第一次修复后检查残留、按需追加一次局部修复。也支持手动框和手绘遮罩。完整参数表和提示词模板见 [`docs/参数与提示词.md`](docs/参数与提示词.md)。
 
 ## 包含内容
 
 - `workflows/qwen21_watermark.json`：可导入 ComfyUI 的工作流。
-- `custom_nodes/ComfyUI-Qwen-Watermark/`：工作流必需的四个自定义节点。
+- `custom_nodes/ComfyUI-Qwen-Watermark/`：工作流必需的五个自定义节点。
 - `docs/参数与提示词.md`：按场景的参数表、正负向提示词和排错顺序。
 - `install.py`：安装节点、依赖并检查模型。
 - `docs/images/`：公开演示图；不包含用户原图、输出目录或诊断日志。
@@ -46,9 +46,9 @@ SAM ViT-B 官方下载地址：<https://dl.fbaipublicfiles.com/segment_anything/
 
 1. 导入 `workflows/qwen21_watermark.json`。
 2. 在 `01 上传原图` 节点重新选择本机图片。
-3. 普通水印可用 `auto_qwen`；矩形色块优先 `manual_boxes + box`；不规则贴纸优先 `manual_boxes + sam`。
+3. 默认使用 `auto_qwen + auto`，工作流会按类型自动选择矩形框或 SAM；定位错误时再使用 `manual_boxes` / `manual_mask`。
 4. 使用手绘遮罩时，在 LoadImage 的遮罩编辑器绘制白色区域，将 `MASK` 输出连接到 `QWMDetect.manual_mask`，并把模式设为 `manual_mask`。
-5. 运行后查看 `定位预览`、`细化遮罩预览` 和左右对比图。
+5. 运行后查看 `定位预览`、`细化遮罩预览`、`残留复检` 和左右对比图。
 
 `manual_mask`、SAM 路径会应用 `dilation`；大型贴纸建议开启 `adaptive_dilation`。`box` 路径通过检测节点的 `expand` 扩大范围，`dilation` 对它不生效。
 
@@ -56,7 +56,8 @@ SAM ViT-B 官方下载地址：<https://dl.fbaipublicfiles.com/segment_anything/
 
 - 导入后节点为红色：未安装本包中的自定义节点，或安装后没有重启 ComfyUI。
 - 点击运行没有结果：在 LoadImage 节点重新选择图片；若状态为 `no_overlay_detected`，填写 `hint` 或使用手动框/遮罩。
-- 手绘遮罩仍有残影：确认使用 1.1.0 节点并开启 `adaptive_dilation`；增加 `dilation`，不要用更大的 `feather` 代替遮罩外扩。
+- 手绘遮罩仍有残影：确认使用 1.2.0 节点并开启 `adaptive_dilation`；增加 `dilation`，不要用更大的 `feather` 代替遮罩外扩。
+- 自动识别漏掉 Logo：先将 `detection_side` 保持为 1024，并在 `hint` 中描述位置；重要图片仍应查看定位预览并人工确认低置信度结果。
 - 模型下拉框为空：模型目录或文件名不匹配。
 
 ## 说明

@@ -26,11 +26,11 @@
       ],
       "mode": "auto_qwen",
       "boxes_json": "{\"coordinate_space\":\"pixels\",\"boxes\":[]}",
-      "detection_side": 768,
+      "detection_side": 1024,
       "expand": 16,
-      "max_tokens": 384,
+      "max_tokens": 512,
       "hint": "",
-      "padding_ratio": 0.25
+      "padding_ratio": 0.35
     }
   },
   "4": {
@@ -48,7 +48,7 @@
         "3",
         1
       ],
-      "method": "sam",
+      "method": "auto",
       "sam_model": "sam_vit_b_01ec64.pth",
       "device": "auto",
       "dilation": 12,
@@ -121,7 +121,10 @@
         "5",
         0
       ],
-      "prompt": "编辑<image1>。只移除图像中后期叠加的文字水印、平台标记、Logo、矩形粘贴图案、贴纸、马赛克或其他遮挡贴片，依据紧邻区域和主体结构恢复被遮挡的内容。输入中待修复位置可能已经被预处理成粗糙、模糊或拉丝状色块；这是贴片被预先擦除后的痕迹，必须重建为连续、清晰、自然的背景，不能保留该痕迹。待移除的前景叠加物可能是不规则轮廓，甚至像动物、人物或其他真实物体；它一定是需要移除的后期贴片，不是原始场景对象。完整移除该叠加物的所有可见像素，包括内部细节、外轮廓、四肢、耳朵、投影、描边和半透明残留，不要重画或保留其形状。严格保持原图的相机、透视、物体位置、人物身份、轮廓、材质、光照和整体颜色。人物皮肤、服装边缘、道路标线、建筑边缘和纹理应自然连续。保留场景中的真实文字、招牌、服装本身的连续图案和物体商标。不得改变构图，不得移动任何原有物体，不得裁剪或缩放画面，不添加无关内容，不用模糊色块遮盖。输出与输入尺寸相同的完整局部图像。",
+      "prompt": [
+        "3",
+        3
+      ],
       "negative_prompt": "残留水印，残留贴纸，残留动物或人物，模糊涂抹，接缝，构图变化，物体移位",
       "resolution": 0
     }
@@ -290,6 +293,186 @@
         "4",
         2
       ]
+    }
+  },
+  "26": {
+    "class_type": "QWMResidualDetect",
+    "inputs": {
+      "image": [
+        "14",
+        0
+      ],
+      "clip": [
+        "2",
+        0
+      ],
+      "detection_side": 1024,
+      "expand": 24,
+      "max_tokens": 384
+    }
+  },
+  "27": {
+    "class_type": "QWMRefineMask",
+    "inputs": {
+      "image": [
+        "14",
+        0
+      ],
+      "mask": [
+        "26",
+        0
+      ],
+      "boxes_json": [
+        "26",
+        1
+      ],
+      "method": "auto",
+      "sam_model": "sam_vit_b_01ec64.pth",
+      "device": "auto",
+      "dilation": 8,
+      "adaptive_dilation": false
+    }
+  },
+  "28": {
+    "class_type": "QWMPrepare",
+    "inputs": {
+      "image": [
+        "14",
+        0
+      ],
+      "mask": [
+        "27",
+        0
+      ],
+      "context_pixels": 128,
+      "max_side": 768,
+      "pre_inpaint": "telea",
+      "inpaint_radius": 3
+    }
+  },
+  "29": {
+    "class_type": "TextEncodeQwenImage21",
+    "inputs": {
+      "clip": [
+        "2",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ],
+      "images.image_1": [
+        "28",
+        0
+      ],
+      "prompt": [
+        "26",
+        3
+      ],
+      "negative_prompt": "残留水印，残留贴纸，重影，模糊涂抹，接缝，构图变化，物体移位",
+      "resolution": 0
+    }
+  },
+  "30": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "8",
+        0
+      ],
+      "positive": [
+        "29",
+        0
+      ],
+      "negative": [
+        "29",
+        1
+      ],
+      "latent_image": [
+        "29",
+        2
+      ],
+      "seed": 240517,
+      "steps": 16,
+      "cfg": 1.0,
+      "sampler_name": "euler_ancestral",
+      "scheduler": "sgm_uniform",
+      "denoise": 1.0
+    }
+  },
+  "31": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "30",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ]
+    }
+  },
+  "32": {
+    "class_type": "QWMComposite",
+    "inputs": {
+      "original": [
+        "14",
+        0
+      ],
+      "edited_crop": [
+        "31",
+        0
+      ],
+      "mask": [
+        "27",
+        0
+      ],
+      "geometry": [
+        "28",
+        2
+      ],
+      "feather": 4,
+      "align": true
+    }
+  },
+  "33": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "32",
+        0
+      ],
+      "filename_prefix": "QwenWatermark/restored_verified"
+    }
+  },
+  "34": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "32",
+        1
+      ],
+      "filename_prefix": "QwenWatermark/comparison_verified"
+    }
+  },
+  "35": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "26",
+        1
+      ]
+    }
+  },
+  "36": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "26",
+        2
+      ],
+      "filename_prefix": "QwenWatermark/residual_check"
     }
   }
 }

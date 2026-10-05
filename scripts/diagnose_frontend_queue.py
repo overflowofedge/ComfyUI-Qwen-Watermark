@@ -58,7 +58,7 @@ def main():
             "() => {const app=window.comfyAPI?.app?.app; "
             "const types=app?.graph?.constructor?.registered_node_types || "
             "window.LiteGraph?.registered_node_types || {}; "
-            "return ['QWMDetect','QWMRefineMask','QWMPrepare','QWMComposite']"
+            "return ['QWMDetect','QWMResidualDetect','QWMRefineMask','QWMPrepare','QWMComposite']"
             ".every(name => !!types[name]);}",
             timeout=30_000,
         )
