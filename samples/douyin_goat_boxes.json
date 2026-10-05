@@ -1,0 +1,9 @@
+{
+  "coordinate_space": "pixels",
+  "boxes": [
+    {
+      "label": "后期叠加的小羊贴纸",
+      "bbox": [520, 2180, 970, 2780]
+    }
+  ]
+}

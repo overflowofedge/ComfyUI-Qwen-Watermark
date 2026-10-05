@@ -1,0 +1,73 @@
+{
+  "1": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "qwm_demo_watermarked.png"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen3vl_8b_int8_convrot.safetensors",
+      "type": "qwen_image",
+      "device": "default"
+    }
+  },
+  "3": {
+    "class_type": "QWMDetect",
+    "inputs": {
+      "image": [
+        "1",
+        0
+      ],
+      "clip": [
+        "2",
+        0
+      ],
+      "mode": "auto_qwen",
+      "boxes_json": "{\"coordinate_space\":\"pixels\",\"boxes\":[]}",
+      "detection_side": 768,
+      "expand": 16,
+      "max_tokens": 384,
+      "hint": "",
+      "padding_ratio": 0.25
+    }
+  },
+  "17": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "3",
+        2
+      ],
+      "filename_prefix": "QwenWatermark/detection"
+    }
+  },
+  "19": {
+    "class_type": "MaskToImage",
+    "inputs": {
+      "mask": [
+        "3",
+        0
+      ]
+    }
+  },
+  "20": {
+    "class_type": "PreviewImage",
+    "inputs": {
+      "images": [
+        "19",
+        0
+      ]
+    }
+  },
+  "23": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "3",
+        1
+      ]
+    }
+  }
+}

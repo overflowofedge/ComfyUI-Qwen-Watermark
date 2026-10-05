@@ -1,0 +1,1733 @@
+{
+  "id": "2f91def3-decf-47d5-9578-e357097568a1",
+  "revision": 0,
+  "last_node_id": 25,
+  "last_link_id": 33,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "LoadImage",
+      "title": "01 上传原图",
+      "pos": [
+        40,
+        100
+      ],
+      "size": [
+        310,
+        180
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1,
+            3,
+            6,
+            19
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "qwm_demo_watermarked.png",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "qwm_demo_watermarked.png"
+      }
+    },
+    {
+      "id": 2,
+      "type": "CLIPLoader",
+      "title": "共享本机 Qwen3-VL",
+      "pos": [
+        40,
+        400
+      ],
+      "size": [
+        310,
+        180
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "clip_name"
+          },
+          "link": null
+        },
+        {
+          "name": "type",
+          "type": "COMBO",
+          "widget": {
+            "name": "type"
+          },
+          "link": null
+        },
+        {
+          "name": "device",
+          "type": "COMBO",
+          "widget": {
+            "name": "device"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            2,
+            10
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "qwen3vl_8b_int8_convrot.safetensors",
+        "qwen_image",
+        "default"
+      ],
+      "widgets_values_named": {
+        "clip_name": "qwen3vl_8b_int8_convrot.safetensors",
+        "type": "qwen_image",
+        "device": "default"
+      }
+    },
+    {
+      "id": 3,
+      "type": "QWMDetect",
+      "title": "02 自动定位 / 手动改框",
+      "pos": [
+        430,
+        100
+      ],
+      "size": [
+        400,
+        510
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 2
+        },
+        {
+          "name": "mode",
+          "type": "COMBO",
+          "widget": {
+            "name": "mode"
+          },
+          "link": null
+        },
+        {
+          "name": "boxes_json",
+          "type": "STRING",
+          "widget": {
+            "name": "boxes_json"
+          },
+          "link": null
+        },
+        {
+          "name": "detection_side",
+          "type": "INT",
+          "widget": {
+            "name": "detection_side"
+          },
+          "link": null
+        },
+        {
+          "name": "expand",
+          "type": "INT",
+          "widget": {
+            "name": "expand"
+          },
+          "link": null
+        },
+        {
+          "name": "max_tokens",
+          "type": "INT",
+          "widget": {
+            "name": "max_tokens"
+          },
+          "link": null
+        },
+        {
+          "name": "hint",
+          "type": "STRING",
+          "widget": {
+            "name": "hint"
+          },
+          "link": null
+        },
+        {
+          "name": "padding_ratio",
+          "type": "FLOAT",
+          "widget": {
+            "name": "padding_ratio"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "watermark_mask",
+          "type": "MASK",
+          "links": [
+            4
+          ]
+        },
+        {
+          "name": "boxes_json",
+          "type": "STRING",
+          "links": [
+            5,
+            31
+          ]
+        },
+        {
+          "name": "preview",
+          "type": "IMAGE",
+          "links": [
+            25
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "QWMDetect"
+      },
+      "widgets_values": [
+        "auto_qwen",
+        "{\"coordinate_space\":\"pixels\",\"boxes\":[]}",
+        768,
+        16,
+        384,
+        "",
+        0.25
+      ],
+      "widgets_values_named": {
+        "mode": "auto_qwen",
+        "boxes_json": "{\"coordinate_space\":\"pixels\",\"boxes\":[]}",
+        "detection_side": 768,
+        "expand": 16,
+        "max_tokens": 384,
+        "hint": "",
+        "padding_ratio": 0.25
+      }
+    },
+    {
+      "id": 4,
+      "type": "QWMRefineMask",
+      "title": "03 不规则轮廓细化（SAM）",
+      "pos": [
+        870,
+        100
+      ],
+      "size": [
+        310,
+        510
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 3
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 4
+        },
+        {
+          "name": "boxes_json",
+          "type": "STRING",
+          "link": 5
+        },
+        {
+          "name": "method",
+          "type": "COMBO",
+          "widget": {
+            "name": "method"
+          },
+          "link": null
+        },
+        {
+          "name": "sam_model",
+          "type": "STRING",
+          "widget": {
+            "name": "sam_model"
+          },
+          "link": null
+        },
+        {
+          "name": "device",
+          "type": "COMBO",
+          "widget": {
+            "name": "device"
+          },
+          "link": null
+        },
+        {
+          "name": "dilation",
+          "type": "INT",
+          "widget": {
+            "name": "dilation"
+          },
+          "link": null
+        },
+        {
+          "name": "adaptive_dilation",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "adaptive_dilation"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "refined_mask",
+          "type": "MASK",
+          "links": [
+            7,
+            21,
+            27
+          ]
+        },
+        {
+          "name": "preview",
+          "type": "IMAGE",
+          "links": []
+        },
+        {
+          "name": "status",
+          "type": "STRING",
+          "links": [
+            33
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "QWMRefineMask"
+      },
+      "widgets_values": [
+        null,
+        "sam",
+        "sam_vit_b_01ec64.pth",
+        "auto",
+        12,
+        true
+      ],
+      "widgets_values_named": {
+        "method": "sam",
+        "sam_model": "sam_vit_b_01ec64.pth",
+        "device": "auto",
+        "dilation": 12,
+        "adaptive_dilation": true
+      }
+    },
+    {
+      "id": 5,
+      "type": "QWMPrepare",
+      "title": "04 裁剪并记录坐标",
+      "pos": [
+        1260,
+        100
+      ],
+      "size": [
+        310,
+        180
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 6
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 7
+        },
+        {
+          "name": "context_pixels",
+          "type": "INT",
+          "widget": {
+            "name": "context_pixels"
+          },
+          "link": null
+        },
+        {
+          "name": "max_side",
+          "type": "INT",
+          "widget": {
+            "name": "max_side"
+          },
+          "link": null
+        },
+        {
+          "name": "pre_inpaint",
+          "type": "COMBO",
+          "widget": {
+            "name": "pre_inpaint"
+          },
+          "link": null
+        },
+        {
+          "name": "inpaint_radius",
+          "type": "INT",
+          "widget": {
+            "name": "inpaint_radius"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "reference_crop",
+          "type": "IMAGE",
+          "links": [
+            12,
+            26
+          ]
+        },
+        {
+          "name": "crop_mask",
+          "type": "MASK",
+          "links": []
+        },
+        {
+          "name": "geometry",
+          "type": "QWM_GEOMETRY",
+          "links": [
+            22
+          ]
+        },
+        {
+          "name": "status",
+          "type": "STRING",
+          "links": [
+            32
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "QWMPrepare"
+      },
+      "widgets_values": [
+        96,
+        768,
+        "telea",
+        5
+      ],
+      "widgets_values_named": {
+        "context_pixels": 96,
+        "max_side": 768,
+        "pre_inpaint": "telea",
+        "inpaint_radius": 5
+      }
+    },
+    {
+      "id": 6,
+      "type": "UNETLoader",
+      "title": "UNETLoader",
+      "pos": [
+        40,
+        900
+      ],
+      "size": [
+        310,
+        180
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "unet_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "unet_name"
+          },
+          "link": null
+        },
+        {
+          "name": "weight_dtype",
+          "type": "COMBO",
+          "widget": {
+            "name": "weight_dtype"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "qwen_image_2.1_bf16.safetensors",
+        "default"
+      ],
+      "widgets_values_named": {
+        "unet_name": "qwen_image_2.1_bf16.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    {
+      "id": 7,
+      "type": "ModelAttentionBackend",
+      "title": "ModelAttentionBackend",
+      "pos": [
+        400,
+        900
+      ],
+      "size": [
+        310,
+        180
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 8
+        },
+        {
+          "name": "attention",
+          "type": "COMBO",
+          "widget": {
+            "name": "attention"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            9
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ModelAttentionBackend"
+      },
+      "widgets_values": [
+        "comfy kitchen attention"
+      ],
+      "widgets_values_named": {
+        "attention": "comfy kitchen attention"
+      }
+    },
+    {
+      "id": 8,
+      "type": "QwenImage21Cache",
+      "title": "QwenImage21Cache",
+      "pos": [
+        720,
+        900
+      ],
+      "size": [
+        310,
+        180
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 9
+        },
+        {
+          "name": "device",
+          "type": "COMBO",
+          "widget": {
+            "name": "device"
+          },
+          "link": null
+        },
+        {
+          "name": "dtype",
+          "type": "COMBO",
+          "widget": {
+            "name": "dtype"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            13
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "QwenImage21Cache"
+      },
+      "widgets_values": [
+        "off",
+        "default"
+      ],
+      "widgets_values_named": {
+        "device": "off",
+        "dtype": "default"
+      }
+    },
+    {
+      "id": 9,
+      "type": "VAELoader",
+      "title": "VAELoader",
+      "pos": [
+        40,
+        1100
+      ],
+      "size": [
+        310,
+        180
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "vae_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "vae_name"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            11,
+            18
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "qwen_image_2.1_vae_bf16.safetensors"
+      ],
+      "widgets_values_named": {
+        "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+      }
+    },
+    {
+      "id": 10,
+      "type": "TextEncodeQwenImage21",
+      "title": "05 Qwen 2.1 编辑（尺寸匹配）",
+      "pos": [
+        1740,
+        100
+      ],
+      "size": [
+        400,
+        510
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 10
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 11
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "link": 12
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "prompt"
+          },
+          "link": null
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "negative_prompt"
+          },
+          "link": null
+        },
+        {
+          "name": "resolution",
+          "type": "INT",
+          "widget": {
+            "name": "resolution"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            14
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            15
+          ]
+        },
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            16
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "TextEncodeQwenImage21"
+      },
+      "widgets_values": [
+        "编辑<image1>。只移除图像中后期叠加的文字水印、平台标记、Logo、矩形粘贴图案、贴纸、马赛克或其他遮挡贴片，依据紧邻区域和主体结构恢复被遮挡的内容。输入中待修复位置可能已经被预处理成粗糙、模糊或拉丝状色块；这是贴片被预先擦除后的痕迹，必须重建为连续、清晰、自然的背景，不能保留该痕迹。待移除的前景叠加物可能是不规则轮廓，甚至像动物、人物或其他真实物体；它一定是需要移除的后期贴片，不是原始场景对象。完整移除该叠加物的所有可见像素，包括内部细节、外轮廓、四肢、耳朵、投影、描边和半透明残留，不要重画或保留其形状。严格保持原图的相机、透视、物体位置、人物身份、轮廓、材质、光照和整体颜色。人物皮肤、服装边缘、道路标线、建筑边缘和纹理应自然连续。保留场景中的真实文字、招牌、服装本身的连续图案和物体商标。不得改变构图，不得移动任何原有物体，不得裁剪或缩放画面，不添加无关内容，不用模糊色块遮盖。输出与输入尺寸相同的完整局部图像。",
+        "残留水印，残留贴纸，残留动物或人物，模糊涂抹，接缝，构图变化，物体移位",
+        0
+      ],
+      "widgets_values_named": {
+        "prompt": "编辑<image1>。只移除图像中后期叠加的文字水印、平台标记、Logo、矩形粘贴图案、贴纸、马赛克或其他遮挡贴片，依据紧邻区域和主体结构恢复被遮挡的内容。输入中待修复位置可能已经被预处理成粗糙、模糊或拉丝状色块；这是贴片被预先擦除后的痕迹，必须重建为连续、清晰、自然的背景，不能保留该痕迹。待移除的前景叠加物可能是不规则轮廓，甚至像动物、人物或其他真实物体；它一定是需要移除的后期贴片，不是原始场景对象。完整移除该叠加物的所有可见像素，包括内部细节、外轮廓、四肢、耳朵、投影、描边和半透明残留，不要重画或保留其形状。严格保持原图的相机、透视、物体位置、人物身份、轮廓、材质、光照和整体颜色。人物皮肤、服装边缘、道路标线、建筑边缘和纹理应自然连续。保留场景中的真实文字、招牌、服装本身的连续图案和物体商标。不得改变构图，不得移动任何原有物体，不得裁剪或缩放画面，不添加无关内容，不用模糊色块遮盖。输出与输入尺寸相同的完整局部图像。",
+        "negative_prompt": "残留水印，残留贴纸，残留动物或人物，模糊涂抹，接缝，构图变化，物体移位",
+        "resolution": 0
+      }
+    },
+    {
+      "id": 12,
+      "type": "KSampler",
+      "title": "局部编辑采样",
+      "pos": [
+        2200,
+        100
+      ],
+      "size": [
+        310,
+        180
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 13
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 14
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 15
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 16
+        },
+        {
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        },
+        {
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": null
+        },
+        {
+          "name": "sampler_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler_name"
+          },
+          "link": null
+        },
+        {
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": null
+        },
+        {
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            17
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        802146,
+        "fixed",
+        20,
+        1.0,
+        "euler_ancestral",
+        "sgm_uniform",
+        1.0
+      ],
+      "widgets_values_named": {
+        "seed": 802146,
+        "control_after_generate": "fixed",
+        "steps": 20,
+        "cfg": 1.0,
+        "sampler_name": "euler_ancestral",
+        "scheduler": "sgm_uniform",
+        "denoise": 1.0
+      }
+    },
+    {
+      "id": 13,
+      "type": "VAEDecode",
+      "title": "VAEDecode",
+      "pos": [
+        2200,
+        620
+      ],
+      "size": [
+        310,
+        180
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 17
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 18
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            20,
+            29
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    },
+    {
+      "id": 14,
+      "type": "QWMComposite",
+      "title": "06 校验对齐并贴回",
+      "pos": [
+        2580,
+        100
+      ],
+      "size": [
+        310,
+        180
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "original",
+          "type": "IMAGE",
+          "link": 19
+        },
+        {
+          "name": "edited_crop",
+          "type": "IMAGE",
+          "link": 20
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 21
+        },
+        {
+          "name": "geometry",
+          "type": "QWM_GEOMETRY",
+          "link": 22
+        },
+        {
+          "name": "feather",
+          "type": "INT",
+          "widget": {
+            "name": "feather"
+          },
+          "link": null
+        },
+        {
+          "name": "align",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "align"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "restored_image",
+          "type": "IMAGE",
+          "links": [
+            23
+          ]
+        },
+        {
+          "name": "comparison",
+          "type": "IMAGE",
+          "links": [
+            24
+          ]
+        },
+        {
+          "name": "report",
+          "type": "STRING",
+          "links": [
+            30
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "QWMComposite"
+      },
+      "widgets_values": [
+        6,
+        true
+      ],
+      "widgets_values_named": {
+        "feather": 6,
+        "align": true
+      }
+    },
+    {
+      "id": 15,
+      "type": "SaveImage",
+      "title": "保存修复结果",
+      "pos": [
+        3000,
+        100
+      ],
+      "size": [
+        310,
+        440
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 23
+        },
+        {
+          "name": "filename_prefix",
+          "type": "STRING",
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "QwenWatermark/restored"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "QwenWatermark/restored"
+      }
+    },
+    {
+      "id": 16,
+      "type": "SaveImage",
+      "title": "左右对比：原图 / 结果",
+      "pos": [
+        3000,
+        700
+      ],
+      "size": [
+        310,
+        440
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 24
+        },
+        {
+          "name": "filename_prefix",
+          "type": "STRING",
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "QwenWatermark/comparison"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "QwenWatermark/comparison"
+      }
+    },
+    {
+      "id": 17,
+      "type": "SaveImage",
+      "title": "定位预览",
+      "pos": [
+        430,
+        650
+      ],
+      "size": [
+        310,
+        440
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 25
+        },
+        {
+          "name": "filename_prefix",
+          "type": "STRING",
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "QwenWatermark/detection"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "QwenWatermark/detection"
+      }
+    },
+    {
+      "id": 18,
+      "type": "PreviewImage",
+      "title": "送入模型的局部图",
+      "pos": [
+        1260,
+        480
+      ],
+      "size": [
+        310,
+        440
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 26
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    },
+    {
+      "id": 19,
+      "type": "MaskToImage",
+      "title": "MaskToImage",
+      "pos": [
+        1260,
+        850
+      ],
+      "size": [
+        310,
+        180
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 27
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            28
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MaskToImage"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    },
+    {
+      "id": 20,
+      "type": "PreviewImage",
+      "title": "细化遮罩预览",
+      "pos": [
+        1620,
+        850
+      ],
+      "size": [
+        310,
+        440
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 28
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    },
+    {
+      "id": 21,
+      "type": "SaveImage",
+      "title": "编辑模型的局部输出",
+      "pos": [
+        2580,
+        680
+      ],
+      "size": [
+        310,
+        440
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 29
+        },
+        {
+          "name": "filename_prefix",
+          "type": "STRING",
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "QwenWatermark/edited_crop"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "QwenWatermark/edited_crop"
+      }
+    },
+    {
+      "id": 22,
+      "type": "PreviewAny",
+      "title": "对齐与回贴报告（检查 warning）",
+      "pos": [
+        3400,
+        100
+      ],
+      "size": [
+        310,
+        440
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "STRING",
+          "link": 30
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    },
+    {
+      "id": 23,
+      "type": "PreviewAny",
+      "title": "定位坐标（可复制并修改）",
+      "pos": [
+        430,
+        1180
+      ],
+      "size": [
+        310,
+        440
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "STRING",
+          "link": 31
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    },
+    {
+      "id": 24,
+      "type": "PreviewAny",
+      "title": "裁剪状态（空检测会静默停止）",
+      "pos": [
+        1260,
+        1180
+      ],
+      "size": [
+        310,
+        440
+      ],
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "STRING",
+          "link": 32
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    },
+    {
+      "id": 25,
+      "type": "PreviewAny",
+      "title": "SAM 细化状态（失败会回退矩形框）",
+      "pos": [
+        870,
+        1180
+      ],
+      "size": [
+        310,
+        440
+      ],
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "STRING",
+          "link": 33
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      3,
+      0,
+      "IMAGE"
+    ],
+    [
+      2,
+      2,
+      0,
+      3,
+      1,
+      "CLIP"
+    ],
+    [
+      3,
+      1,
+      0,
+      4,
+      0,
+      "IMAGE"
+    ],
+    [
+      4,
+      3,
+      0,
+      4,
+      1,
+      "MASK"
+    ],
+    [
+      5,
+      3,
+      1,
+      4,
+      2,
+      "STRING"
+    ],
+    [
+      6,
+      1,
+      0,
+      5,
+      0,
+      "IMAGE"
+    ],
+    [
+      7,
+      4,
+      0,
+      5,
+      1,
+      "MASK"
+    ],
+    [
+      8,
+      6,
+      0,
+      7,
+      0,
+      "MODEL"
+    ],
+    [
+      9,
+      7,
+      0,
+      8,
+      0,
+      "MODEL"
+    ],
+    [
+      10,
+      2,
+      0,
+      10,
+      0,
+      "CLIP"
+    ],
+    [
+      11,
+      9,
+      0,
+      10,
+      1,
+      "VAE"
+    ],
+    [
+      12,
+      5,
+      0,
+      10,
+      2,
+      "IMAGE"
+    ],
+    [
+      13,
+      8,
+      0,
+      12,
+      0,
+      "MODEL"
+    ],
+    [
+      14,
+      10,
+      0,
+      12,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      15,
+      10,
+      1,
+      12,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      16,
+      10,
+      2,
+      12,
+      3,
+      "LATENT"
+    ],
+    [
+      17,
+      12,
+      0,
+      13,
+      0,
+      "LATENT"
+    ],
+    [
+      18,
+      9,
+      0,
+      13,
+      1,
+      "VAE"
+    ],
+    [
+      19,
+      1,
+      0,
+      14,
+      0,
+      "IMAGE"
+    ],
+    [
+      20,
+      13,
+      0,
+      14,
+      1,
+      "IMAGE"
+    ],
+    [
+      21,
+      4,
+      0,
+      14,
+      2,
+      "MASK"
+    ],
+    [
+      22,
+      5,
+      2,
+      14,
+      3,
+      "QWM_GEOMETRY"
+    ],
+    [
+      23,
+      14,
+      0,
+      15,
+      0,
+      "IMAGE"
+    ],
+    [
+      24,
+      14,
+      1,
+      16,
+      0,
+      "IMAGE"
+    ],
+    [
+      25,
+      3,
+      2,
+      17,
+      0,
+      "IMAGE"
+    ],
+    [
+      26,
+      5,
+      0,
+      18,
+      0,
+      "IMAGE"
+    ],
+    [
+      27,
+      4,
+      0,
+      19,
+      0,
+      "MASK"
+    ],
+    [
+      28,
+      19,
+      0,
+      20,
+      0,
+      "IMAGE"
+    ],
+    [
+      29,
+      13,
+      0,
+      21,
+      0,
+      "IMAGE"
+    ],
+    [
+      30,
+      14,
+      2,
+      22,
+      0,
+      "STRING"
+    ],
+    [
+      31,
+      3,
+      1,
+      23,
+      0,
+      "STRING"
+    ],
+    [
+      32,
+      5,
+      3,
+      24,
+      0,
+      "STRING"
+    ],
+    [
+      33,
+      4,
+      2,
+      25,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.55,
+      "offset": [
+        20,
+        30
+      ]
+    }
+  },
+  "version": 0.4
+}

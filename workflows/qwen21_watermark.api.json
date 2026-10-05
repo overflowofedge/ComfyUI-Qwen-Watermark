@@ -1,0 +1,295 @@
+{
+  "1": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "qwm_demo_watermarked.png"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen3vl_8b_int8_convrot.safetensors",
+      "type": "qwen_image",
+      "device": "default"
+    }
+  },
+  "3": {
+    "class_type": "QWMDetect",
+    "inputs": {
+      "image": [
+        "1",
+        0
+      ],
+      "clip": [
+        "2",
+        0
+      ],
+      "mode": "auto_qwen",
+      "boxes_json": "{\"coordinate_space\":\"pixels\",\"boxes\":[]}",
+      "detection_side": 768,
+      "expand": 16,
+      "max_tokens": 384,
+      "hint": "",
+      "padding_ratio": 0.25
+    }
+  },
+  "4": {
+    "class_type": "QWMRefineMask",
+    "inputs": {
+      "image": [
+        "1",
+        0
+      ],
+      "mask": [
+        "3",
+        0
+      ],
+      "boxes_json": [
+        "3",
+        1
+      ],
+      "method": "sam",
+      "sam_model": "sam_vit_b_01ec64.pth",
+      "device": "auto",
+      "dilation": 12,
+      "adaptive_dilation": true
+    }
+  },
+  "5": {
+    "class_type": "QWMPrepare",
+    "inputs": {
+      "image": [
+        "1",
+        0
+      ],
+      "mask": [
+        "4",
+        0
+      ],
+      "context_pixels": 96,
+      "max_side": 768,
+      "pre_inpaint": "telea",
+      "inpaint_radius": 5
+    }
+  },
+  "6": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "qwen_image_2.1_bf16.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "7": {
+    "class_type": "ModelAttentionBackend",
+    "inputs": {
+      "model": [
+        "6",
+        0
+      ],
+      "attention": "comfy kitchen attention"
+    }
+  },
+  "8": {
+    "class_type": "QwenImage21Cache",
+    "inputs": {
+      "model": [
+        "7",
+        0
+      ],
+      "device": "off",
+      "dtype": "default"
+    }
+  },
+  "9": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+    }
+  },
+  "10": {
+    "class_type": "TextEncodeQwenImage21",
+    "inputs": {
+      "clip": [
+        "2",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ],
+      "images.image_1": [
+        "5",
+        0
+      ],
+      "prompt": "编辑<image1>。只移除图像中后期叠加的文字水印、平台标记、Logo、矩形粘贴图案、贴纸、马赛克或其他遮挡贴片，依据紧邻区域和主体结构恢复被遮挡的内容。输入中待修复位置可能已经被预处理成粗糙、模糊或拉丝状色块；这是贴片被预先擦除后的痕迹，必须重建为连续、清晰、自然的背景，不能保留该痕迹。待移除的前景叠加物可能是不规则轮廓，甚至像动物、人物或其他真实物体；它一定是需要移除的后期贴片，不是原始场景对象。完整移除该叠加物的所有可见像素，包括内部细节、外轮廓、四肢、耳朵、投影、描边和半透明残留，不要重画或保留其形状。严格保持原图的相机、透视、物体位置、人物身份、轮廓、材质、光照和整体颜色。人物皮肤、服装边缘、道路标线、建筑边缘和纹理应自然连续。保留场景中的真实文字、招牌、服装本身的连续图案和物体商标。不得改变构图，不得移动任何原有物体，不得裁剪或缩放画面，不添加无关内容，不用模糊色块遮盖。输出与输入尺寸相同的完整局部图像。",
+      "negative_prompt": "残留水印，残留贴纸，残留动物或人物，模糊涂抹，接缝，构图变化，物体移位",
+      "resolution": 0
+    }
+  },
+  "12": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "8",
+        0
+      ],
+      "positive": [
+        "10",
+        0
+      ],
+      "negative": [
+        "10",
+        1
+      ],
+      "latent_image": [
+        "10",
+        2
+      ],
+      "seed": 802146,
+      "steps": 20,
+      "cfg": 1.0,
+      "sampler_name": "euler_ancestral",
+      "scheduler": "sgm_uniform",
+      "denoise": 1.0
+    }
+  },
+  "13": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "12",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ]
+    }
+  },
+  "14": {
+    "class_type": "QWMComposite",
+    "inputs": {
+      "original": [
+        "1",
+        0
+      ],
+      "edited_crop": [
+        "13",
+        0
+      ],
+      "mask": [
+        "4",
+        0
+      ],
+      "geometry": [
+        "5",
+        2
+      ],
+      "feather": 6,
+      "align": true
+    }
+  },
+  "15": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "14",
+        0
+      ],
+      "filename_prefix": "QwenWatermark/restored"
+    }
+  },
+  "16": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "14",
+        1
+      ],
+      "filename_prefix": "QwenWatermark/comparison"
+    }
+  },
+  "17": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "3",
+        2
+      ],
+      "filename_prefix": "QwenWatermark/detection"
+    }
+  },
+  "18": {
+    "class_type": "PreviewImage",
+    "inputs": {
+      "images": [
+        "5",
+        0
+      ]
+    }
+  },
+  "19": {
+    "class_type": "MaskToImage",
+    "inputs": {
+      "mask": [
+        "4",
+        0
+      ]
+    }
+  },
+  "20": {
+    "class_type": "PreviewImage",
+    "inputs": {
+      "images": [
+        "19",
+        0
+      ]
+    }
+  },
+  "21": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "13",
+        0
+      ],
+      "filename_prefix": "QwenWatermark/edited_crop"
+    }
+  },
+  "22": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "14",
+        2
+      ]
+    }
+  },
+  "23": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "3",
+        1
+      ]
+    }
+  },
+  "24": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "5",
+        3
+      ]
+    }
+  },
+  "25": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "4",
+        2
+      ]
+    }
+  }
+}

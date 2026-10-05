@@ -1,0 +1,23 @@
+{
+  "coordinate_space": "pixels",
+  "boxes": [
+    {
+      "label": "DEMO WATERMARK",
+      "bbox": [
+        58,
+        350,
+        250,
+        418
+      ]
+    },
+    {
+      "label": "W logo",
+      "bbox": [
+        292,
+        350,
+        359,
+        417
+      ]
+    }
+  ]
+}

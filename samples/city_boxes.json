@@ -1,0 +1,6 @@
+{
+  "coordinate_space": "pixels",
+  "boxes": [
+    {"label": "central translucent watermark", "bbox": [145, 337, 351, 409]}
+  ]
+}
