@@ -1,3 +1,4 @@
+import importlib.util
 import json
 from pathlib import Path
 
@@ -79,3 +80,36 @@ def test_ui_workflow_links_are_bidirectional():
             target = nodes[str(target_id)]["inputs"][target_slot]
             assert link_id in (source.get("links") or []), (name, link_id, "missing source backlink")
             assert target.get("link") == link_id, (name, link_id, "missing target backlink")
+
+
+def test_ui_workflow_widgets_never_contain_null_text_placeholders():
+    for name in ("qwen21_watermark.json", "qwen_watermark_detection.json"):
+        for node in _load(name)["nodes"]:
+            assert all(value is not None for value in node.get("widgets_values", [])), (
+                name, node["id"], "null widget crashes presetText when queueing"
+            )
+
+
+def test_linked_strings_remain_serializable_without_shifting_later_widgets():
+    spec = importlib.util.spec_from_file_location("build_workflows", ROOT / "scripts" / "build_workflows.py")
+    builder = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(builder)
+    graph = {
+        "1": {"class_type": "TextSource", "inputs": {"text": "source text"}},
+        "26": {"class_type": "ReportConsumer", "inputs": {
+            "first_report": ["1", 0], "min_confidence": 0.8,
+        }},
+    }
+    infos = {
+        "TextSource": {"input": {"required": {"text": ["STRING", {}]}}, "output": ["STRING"]},
+        "ReportConsumer": {"input": {"required": {
+            "first_report": ["STRING", {}], "min_confidence": ["FLOAT", {}],
+        }}, "output": ["STRING"]},
+    }
+    workflow = builder.ui_graph(graph, infos)
+    consumer = workflow["nodes"][1]
+    text, confidence = consumer["widgets_values"]
+    assert isinstance(text, str)  # The preset-text extension calls text.replace().
+    assert text.replace("unused", "value") == ""
+    assert confidence == 0.8
+    assert consumer["inputs"][0]["link"] == workflow["links"][0][0]

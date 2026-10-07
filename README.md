@@ -97,7 +97,9 @@ python scripts/run_workflow.py "C:\图片\原图.png" --edit-prompt "保留人�
 - 普通文字 + Logo 回归：两处 `effective_dilation=12`，选区外最大差异 `0`。
 - 不规则贴纸回归：SAM 允许轮廓在安全边界内越过检测框，自动外扩示例为 `32 px`，选区外最大差异 `0`。
 - 手绘遮罩回归：大型区域自适应外扩 `38 px`，选区外最大差异 `0`。
-- Python 回归测试：`55 passed`（v1.3）。
+- Python 回归测试：`57 passed`（v1.3，含文本空值兼容回归）。
+
+如果点击运行出现 `Cannot read properties of null (reading 'replace')`，请重新导入已修复的工作流 JSON。旧导出器将已连线的文本控件占位值保存为 `null`，会触发 `comfyui-custom-scripts` 的文本预设序列化错误；修复后的值为 `""`，参数顺序与连线保持正确。仅此修复无需重装模型或重启后端。
 
 完整实测数据见 [`TEST_RESULTS.md`](TEST_RESULTS.md)。
 

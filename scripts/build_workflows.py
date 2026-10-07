@@ -116,10 +116,11 @@ def ui_graph(graph, infos):
                 input_type = infos[graph[source]["class_type"]]["output"][slot]
                 links.append([link_id, int(source), slot, int(key), len(inputs), input_type])
                 inputs.append({"name": name, "type": input_type, "link": link_id})
-                # ComfyUI keeps a placeholder widget for a linked STRING input.
-                # Preserve that slot so later widget values do not shift on import.
+                # Keep the widget slot even when its STRING is supplied by a link.
+                # Text serializers (including presetText) still visit this widget
+                # while queueing, so it needs a string rather than a null value.
                 if entry is not None and entry[0] == "STRING":
-                    widgets.append(None)
+                    widgets.append("")
             elif widget:
                 inputs.append({"name": name, "type": "COMBO" if isinstance(kind, list) else kind,
                                "widget": {"name": name}, "link": None})

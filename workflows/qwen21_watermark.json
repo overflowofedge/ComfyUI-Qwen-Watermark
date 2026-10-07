@@ -1,5 +1,5 @@
 {
-  "id": "0806016a-bd69-4013-81cf-073330ba1195",
+  "id": "2e7eda58-c106-4d15-a3aa-5335e10dca9b",
   "revision": 0,
   "last_node_id": 38,
   "last_link_id": 76,
@@ -391,7 +391,7 @@
         "Node name for S&R": "QWMRefineMask"
       },
       "widgets_values": [
-        null,
+        "",
         "auto",
         "sam_vit_b_01ec64.pth",
         "auto",
@@ -519,8 +519,8 @@
         768,
         "auto",
         5,
-        null,
-        null
+        "",
+        ""
       ],
       "widgets_values_named": {
         "context_pixels": 96,
@@ -819,7 +819,7 @@
         "Node name for S&R": "TextEncodeQwenImage21"
       },
       "widgets_values": [
-        null,
+        "",
         "残留水印，残留贴纸，残留动物或人物，模糊涂抹，接缝，构图变化，物体移位",
         0
       ],
@@ -1654,7 +1654,7 @@
         384,
         "",
         true,
-        null,
+        "",
         0.8
       ],
       "widgets_values_named": {
@@ -1763,7 +1763,7 @@
         "Node name for S&R": "QWMRefineMask"
       },
       "widgets_values": [
-        null,
+        "",
         "auto",
         "sam_vit_b_01ec64.pth",
         "auto",
@@ -1888,8 +1888,8 @@
         768,
         "auto",
         3,
-        null,
-        null
+        "",
+        ""
       ],
       "widgets_values_named": {
         "context_pixels": 128,
@@ -1978,7 +1978,7 @@
         "Node name for S&R": "TextEncodeQwenImage21"
       },
       "widgets_values": [
-        null,
+        "",
         "残留水印，残留贴纸，重影，模糊涂抹，接缝，构图变化，物体移位",
         0
       ],
@@ -2330,10 +2330,10 @@
         "Node name for S&R": "QWMFinal"
       },
       "widgets_values": [
-        null,
-        null,
-        null,
-        null
+        "",
+        "",
+        "",
+        ""
       ],
       "widgets_values_named": {}
     },
