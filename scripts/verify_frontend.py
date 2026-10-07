@@ -53,7 +53,7 @@ def main():
         page.wait_for_function("() => {const app=window.comfyAPI?.app?.app; const types=app?.graph?.constructor?.registered_node_types || window.LiteGraph?.registered_node_types || {}; return ['QWMDetect','QWMResidualDetect','QWMRefineMask','QWMPrepare','QWMComposite','QWMFinal'].every(name => !!types[name]);}", timeout=30000)
         button = page.get_by_role("button", name=re.compile("运行|Run")).first
         button.wait_for(state="visible", timeout=60000)
-        for name in ("qwen21_watermark", "qwen_watermark_detection"):
+        for name in ("qwen21_watermark", "qwen_watermark_detection", "qwen21_watermark_structure"):
             workflow = json.loads((ROOT / "workflows" / f"{name}.json").read_text(encoding="utf-8"))
             result = page.evaluate("""async (workflow) => {
                 const {app}=await import('/scripts/app.js');

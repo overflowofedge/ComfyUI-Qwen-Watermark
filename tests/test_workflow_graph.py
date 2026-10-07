@@ -4,6 +4,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+WORKFLOWS = ("qwen21_watermark", "qwen_watermark_detection", "qwen21_watermark_structure")
 
 
 def _load(name):
@@ -18,7 +19,7 @@ def _references(graph):
 
 
 def test_api_workflow_references_are_present():
-    for name in ("qwen21_watermark.api.json", "qwen_watermark_detection.api.json"):
+    for name in (workflow + ".api.json" for workflow in WORKFLOWS):
         graph = _load(name)
         missing = [(node_id, input_name, value[0])
                    for node_id, input_name, value in _references(graph)
@@ -68,7 +69,7 @@ def test_full_workflow_rechecks_residuals_and_runs_second_pass_when_needed():
 
 
 def test_ui_workflow_links_are_bidirectional():
-    for name in ("qwen21_watermark.json", "qwen_watermark_detection.json"):
+    for name in (workflow + ".json" for workflow in WORKFLOWS):
         workflow = _load(name)
         nodes = {str(node["id"]): node for node in workflow["nodes"]}
         links = {link[0]: link for link in workflow["links"]}
@@ -83,7 +84,7 @@ def test_ui_workflow_links_are_bidirectional():
 
 
 def test_ui_workflow_widgets_never_contain_null_text_placeholders():
-    for name in ("qwen21_watermark.json", "qwen_watermark_detection.json"):
+    for name in (workflow + ".json" for workflow in WORKFLOWS):
         for node in _load(name)["nodes"]:
             assert all(value is not None for value in node.get("widgets_values", [])), (
                 name, node["id"], "null widget crashes presetText when queueing"
@@ -113,3 +114,26 @@ def test_linked_strings_remain_serializable_without_shifting_later_widgets():
     assert text.replace("unused", "value") == ""
     assert confidence == 0.8
     assert consumer["inputs"][0]["link"] == workflow["links"][0][0]
+
+
+def test_structure_sampling_freezes_encoded_context_instead_of_an_empty_latent():
+    graph = _load("qwen21_watermark_structure.api.json")
+    for sampler, crop, encoder, mask in (("12", "5", "39", "40"), ("30", "28", "43", "44")):
+        # A mask attached to Qwen's empty latent would freeze black context.
+        assert graph[sampler]["inputs"]["latent_image"] == [mask, 0]
+        assert graph[mask]["class_type"] == "SetLatentNoiseMask"
+        assert graph[mask]["inputs"]["mask"] == [crop, 1]
+        assert graph[mask]["inputs"]["samples"] == [encoder, 0]
+        assert graph[encoder]["class_type"] == "VAEEncode"
+        assert graph[encoder]["inputs"]["pixels"] == [crop, 0]
+        assert graph[crop]["inputs"]["pre_inpaint"] == "none"
+        assert graph[crop]["inputs"]["context_pixels"] == 384
+    assert graph["26"]["inputs"]["enabled"] is False
+
+
+def test_visible_prompt_reports_are_the_exact_strings_connected_to_edit_encoders():
+    for name in ("qwen21_watermark", "qwen21_watermark_structure"):
+        graph = _load(name + ".api.json")
+        for encoder, preview in (("10", "41"), ("29", "42")):
+            assert graph[preview]["class_type"] == "PreviewAny"
+            assert graph[preview]["inputs"]["source"] == graph[encoder]["inputs"]["prompt"]

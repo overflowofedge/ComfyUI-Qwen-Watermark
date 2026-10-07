@@ -37,6 +37,7 @@ def main():
     parser.add_argument("image", type=Path)
     parser.add_argument("--server", default="http://127.0.0.1:8188")
     parser.add_argument("--detect-only", action="store_true")
+    parser.add_argument("--structure-protection", action="store_true", help="使用更宽上下文、原裁剪 VAE 和遮罩采样的结构保护工作流")
     parser.add_argument("--boxes", type=Path, help="手动选区 JSON，指定后跳过自动识别")
     parser.add_argument("--hint", default="")
     parser.add_argument("--edit-prompt", default="", help="追加到自动编辑提示词的用户指令")
@@ -47,6 +48,7 @@ def main():
     parser.add_argument("--feather", type=_nonnegative_int, default=6, help="边缘颜色过渡宽度；0 为直接贴回")
     parser.add_argument("--debug-output", action="store_true", help="保存定位、裁剪、一采图等诊断文件")
     parser.add_argument("--max-side", type=_positive_int, default=768)
+    parser.add_argument("--context-pixels", type=_nonnegative_int, help="覆盖局部裁剪上下文宽度（原图像素）")
     parser.add_argument("--detection-side", type=_positive_int, default=1024)
     parser.add_argument("--mask-method", choices=["auto", "sam", "box"], default="auto",
                         help="auto 按检测类型路由；也可强制所有区域使用 SAM 或矩形框")
@@ -54,8 +56,8 @@ def main():
     parser.add_argument("--sam-dilation", type=_nonnegative_int, default=12, help="SAM 轮廓向外补偿的基础像素数")
     parser.add_argument("--fixed-sam-dilation", action="store_true",
                         help="关闭按贴片尺寸自动增加轮廓补偿")
-    parser.add_argument("--pre-inpaint", choices=["auto", "none", "telea", "ns"], default="auto",
-                        help="auto 保留文字/半透明水印的可见背景；块状遮挡先局部预清理")
+    parser.add_argument("--pre-inpaint", choices=["auto", "none", "telea", "ns"],
+                        help="默认沿用工作流：普通版 auto，结构保护版 none")
     parser.add_argument("--inpaint-radius", type=_positive_int, default=5)
     parser.add_argument("--timeout", type=_positive_int, default=3600)
     parser.add_argument("--output", type=Path, default=ROOT / "outputs")
@@ -69,7 +71,7 @@ def main():
     session = requests.Session()
     session.trust_env = False
     server = args.server.rstrip("/")
-    name = "qwen_watermark_detection" if args.detect_only else "qwen21_watermark"
+    name = "qwen_watermark_detection" if args.detect_only else "qwen21_watermark_structure" if args.structure_protection else "qwen21_watermark"
     workflow_bytes = (ROOT / "workflows" / f"{name}.api.json").read_bytes()
     graph = json.loads(workflow_bytes)
     try:
@@ -106,15 +108,20 @@ def main():
         graph["4"]["inputs"].update(method=args.mask_method, device=args.sam_device,
                                      dilation=args.sam_dilation, adaptive_dilation=not args.fixed_sam_dilation)
         graph["5"]["inputs"]["max_side"] = args.max_side
-        graph["5"]["inputs"].update(pre_inpaint=args.pre_inpaint, inpaint_radius=args.inpaint_radius)
+        graph["5"]["inputs"]["inpaint_radius"] = args.inpaint_radius
+        if args.pre_inpaint is not None:
+            graph["5"]["inputs"]["pre_inpaint"] = args.pre_inpaint
+        if args.context_pixels is not None:
+            for key in ("5", "28"):
+                graph[key]["inputs"]["context_pixels"] = args.context_pixels
         graph["12"]["inputs"].update(seed=args.seed, steps=args.steps)
         graph["28"]["inputs"]["max_side"] = args.max_side
         graph["30"]["inputs"]["seed"] = args.seed + 1
         graph["14"]["inputs"].update(feather=args.feather, color_match=not args.no_color_match)
         graph["32"]["inputs"]["color_match"] = not args.no_color_match
-        graph["26"]["inputs"]["enabled"] = not args.skip_residual
+        graph["26"]["inputs"]["enabled"] = graph["26"]["inputs"]["enabled"] and not args.skip_residual
         if not args.debug_output:
-            for key in ("15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "35", "36"):
+            for key in ("15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "35", "36", "41", "42"):
                 graph.pop(key, None)
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
@@ -215,7 +222,9 @@ def main():
     reports["input_sha256"] = hashlib.sha256(args.image.read_bytes()).hexdigest()
     reports["graph_sha256"] = hashlib.sha256(json.dumps(graph, sort_keys=True).encode("utf-8")).hexdigest()
     reports["workflow_sha256"] = hashlib.sha256(workflow_bytes).hexdigest()
-    reports["options"] = {"skip_residual": args.skip_residual, "steps": args.steps, "seed": args.seed, "debug_output": args.debug_output}
+    reports["options"] = {"skip_residual": not graph.get("26", {}).get("inputs", {}).get("enabled", True),
+                          "structure_protection": args.structure_protection, "steps": args.steps,
+                          "seed": args.seed, "debug_output": args.debug_output}
     reports["prompt_id"] = prompt_id
     reports["files"] = files
     (output / "report.json").write_text(json.dumps(reports, ensure_ascii=False, indent=2), encoding="utf-8")

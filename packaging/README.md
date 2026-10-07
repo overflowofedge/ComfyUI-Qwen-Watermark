@@ -64,6 +64,8 @@ SAM ViT-B 官方下载地址：<https://dl.fbaipublicfiles.com/segment_anything/
 - 导入后节点为红色：未安装本包中的自定义节点，或安装后没有重启 ComfyUI。
 - 点击运行没有结果：在 LoadImage 节点重新选择图片；若状态为 `no_overlay_detected`，填写 `hint` 或使用手动框/遮罩。
 - 点击运行报 `Cannot read properties of null (reading 'replace')`：重新导入本包修复后的 JSON。旧文件中的文本占位值为 `null`，会触发文本预设插件错误；本包使用空字符串。仅此修复无需重启后端或重装模型。
+- 提示词输入框不显示：编辑提示词由连线传入，在“02 自动定位 / 手动改框”的 `edit_prompt` 填补充要求，“实际送入模型的编辑提示词”显示完整内容。
+- 人物或建筑结构被重画：尝试 `workflows/qwen21_watermark_structure.json`，它扩大上下文、保留原裁剪、使用 VAE 编码和遮罩采样。补充保留姿态/轮廓的指令，并缩小过大的手绘范围；默认单次修复，结果需人工检查。
 - 手绘遮罩仍有残影：确认使用 1.3.0 节点并开启 `adaptive_dilation`；增加 `dilation`，不要用更大的 `feather` 代替遮罩外扩。
 - 自动识别漏掉 Logo：先将 `detection_side` 保持为 1024，并在 `hint` 中描述位置；重要图片仍应查看定位预览并人工确认低置信度结果。
 - 模型下拉框为空：模型目录或文件名不匹配。

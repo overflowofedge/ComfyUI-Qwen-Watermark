@@ -25,7 +25,8 @@ def main():
 
     copy_file(ROOT / "workflows" / "qwen21_watermark.json",
               PACKAGE / "workflows" / "qwen21_watermark.json")
-    for name in ("qwen21_watermark.api.json", "qwen_watermark_detection.json", "qwen_watermark_detection.api.json"):
+    for name in ("qwen21_watermark.api.json", "qwen_watermark_detection.json", "qwen_watermark_detection.api.json",
+                 "qwen21_watermark_structure.json", "qwen21_watermark_structure.api.json"):
         copy_file(ROOT / "workflows" / name, PACKAGE / "workflows" / name)
     for name in ("run_workflow.py", "run_batch.py", "replay_composite.py"):
         copy_file(ROOT / "scripts" / name, PACKAGE / "scripts" / name)

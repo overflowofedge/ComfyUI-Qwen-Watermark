@@ -1,4 +1,5 @@
 import argparse
+import copy
 import json
 from pathlib import Path
 import uuid
@@ -67,7 +68,26 @@ def api_graph():
         "38": node("PreviewAny", source=["37", 2]),
         "35": node("PreviewAny", source=["26", 1]),
         "36": node("SaveImage", images=["26", 2], filename_prefix="QwenWatermark/residual_check"),
+        "41": node("PreviewAny", source=["5", 4]),
+        "42": node("PreviewAny", source=["28", 4]),
     }
+
+
+def structure_graph():
+    """Keep the native Qwen references, but also constrain sampling spatially."""
+    graph = copy.deepcopy(api_graph())
+    for key in ("5", "28"):
+        graph[key]["inputs"].update(context_pixels=384, pre_inpaint="none")
+    # Encode actual pixels: masking the encoder's empty latent would freeze a
+    # zero-filled background. These crops use exactly the native edit size.
+    for encode, masked, crop, sampler in (("39", "40", "5", "12"), ("43", "44", "28", "30")):
+        graph[encode] = {"class_type": "VAEEncode", "inputs": {"pixels": [crop, 0], "vae": ["9", 0]}}
+        graph[masked] = {"class_type": "SetLatentNoiseMask", "inputs": {"samples": [encode, 0], "mask": [crop, 1]}}
+        graph[sampler]["inputs"]["latent_image"] = [masked, 0]
+    # A clean residual result does not prove anatomical correctness. Start with
+    # one masked edit and a needs_review result; a reviewer may enable rechecks.
+    graph["26"]["inputs"]["enabled"] = False
+    return graph
 
 
 POSITIONS = {"1": (40, 100), "2": (40, 400), "3": (430, 100), "4": (870, 100), "5": (1260, 100),
@@ -80,6 +100,8 @@ POSITIONS = {"1": (40, 100), "2": (40, 400), "3": (430, 100), "4": (870, 100), "
              "34": (6400, 1220), "35": (3830, 1280), "36": (3400, 1280),
              "37": (5950, 700), "38": (6800, 700)}
 POSITIONS["33"] = (6400, 700)
+POSITIONS.update({"39": (1740, 1200), "40": (2200, 1200), "41": (1740, 1600),
+                  "42": (4670, 1700), "43": (4670, 1260), "44": (5130, 1510)})
 TITLES = {"1": "01 上传原图", "2": "共享本机 Qwen3-VL", "3": "02 自动定位 / 手动改框",
           "4": "03 不规则轮廓细化（SAM）", "5": "04 裁剪并记录坐标", "10": "05 Qwen 2.1 编辑（尺寸匹配）",
           "12": "局部编辑采样", "14": "06 对齐 / 保色贴回", "15": "一采候选（供检查）",
@@ -90,6 +112,9 @@ TITLES.update({"26": "07 第一次修复后检查残留", "27": "08 残留类型
                "29": "10 残留定向编辑", "30": "残留二次采样", "31": "残留局部解码",
                "32": "11 二采保色贴回", "33": "最终结果（自动择优）", "34": "最终左右对比",
                "35": "残留复检报告", "36": "残留复检预览", "37": "12 质量检查 / 选择最终结果", "38": "最终质量报告"})
+TITLES.update({"39": "原裁剪 VAE 编码（保留结构）", "40": "一采只在遮罩内加噪",
+               "41": "实际送入模型的编辑提示词", "42": "实际送入二采的编辑提示词",
+               "43": "残留裁剪 VAE 编码", "44": "二采只在残留遮罩内加噪"})
 
 
 def ui_graph(graph, infos):
@@ -184,6 +209,14 @@ def main():
     for name, subset in [("qwen21_watermark", graph), ("qwen_watermark_detection", detection)]:
         (folder / f"{name}.api.json").write_text(json.dumps(subset, ensure_ascii=False, indent=2), encoding="utf-8")
         (folder / f"{name}.json").write_text(json.dumps(ui_graph(subset, infos), ensure_ascii=False, indent=2), encoding="utf-8")
+    structured = structure_graph()
+    ui = ui_graph(structured, infos)
+    ui["extra"]["qwm_variant"] = "structure_protection"
+    ui["groups"][1]["bounding"] = [1710, 40, 1650, 2150]
+    ui["groups"][3]["bounding"] = [4190, 630, 1720, 1650]
+    ui["nodes"] = [{**node, "title": "05 Qwen 2.1 编辑（遮罩采样保护）"} if node["id"] == 10 else node for node in ui["nodes"]]
+    (folder / "qwen21_watermark_structure.api.json").write_text(json.dumps(structured, ensure_ascii=False, indent=2), encoding="utf-8")
+    (folder / "qwen21_watermark_structure.json").write_text(json.dumps(ui, ensure_ascii=False, indent=2), encoding="utf-8")
     print("Created importable ComfyUI workflows and API graphs.")
 
 

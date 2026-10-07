@@ -1,0 +1,633 @@
+{
+  "1": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "qwm_demo_watermarked.png"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen3vl_8b_int8_convrot.safetensors",
+      "type": "qwen_image",
+      "device": "default"
+    }
+  },
+  "3": {
+    "class_type": "QWMDetect",
+    "inputs": {
+      "image": [
+        "1",
+        0
+      ],
+      "clip": [
+        "2",
+        0
+      ],
+      "mode": "auto_qwen",
+      "boxes_json": "{\"coordinate_space\":\"pixels\",\"boxes\":[]}",
+      "detection_side": 1024,
+      "expand": 20,
+      "max_tokens": 512,
+      "hint": "",
+      "edit_prompt": "",
+      "padding_ratio": 0.35,
+      "manual_mask": [
+        "1",
+        1
+      ],
+      "min_confidence": 0.65
+    }
+  },
+  "4": {
+    "class_type": "QWMRefineMask",
+    "inputs": {
+      "image": [
+        "1",
+        0
+      ],
+      "mask": [
+        "3",
+        0
+      ],
+      "boxes_json": [
+        "3",
+        1
+      ],
+      "method": "auto",
+      "sam_model": "sam_vit_b_01ec64.pth",
+      "device": "auto",
+      "dilation": 12,
+      "adaptive_dilation": true
+    }
+  },
+  "5": {
+    "class_type": "QWMPrepare",
+    "inputs": {
+      "image": [
+        "1",
+        0
+      ],
+      "mask": [
+        "4",
+        0
+      ],
+      "context_pixels": 384,
+      "max_side": 768,
+      "pre_inpaint": "none",
+      "inpaint_radius": 5,
+      "edit_prompt": [
+        "3",
+        3
+      ],
+      "boxes_json": [
+        "3",
+        1
+      ]
+    }
+  },
+  "6": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "qwen_image_2.1_bf16.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "7": {
+    "class_type": "ModelAttentionBackend",
+    "inputs": {
+      "model": [
+        "6",
+        0
+      ],
+      "attention": "comfy kitchen attention"
+    }
+  },
+  "8": {
+    "class_type": "QwenImage21Cache",
+    "inputs": {
+      "model": [
+        "7",
+        0
+      ],
+      "device": "off",
+      "dtype": "default"
+    }
+  },
+  "9": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+    }
+  },
+  "10": {
+    "class_type": "TextEncodeQwenImage21",
+    "inputs": {
+      "clip": [
+        "2",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ],
+      "images.image_1": [
+        "5",
+        0
+      ],
+      "prompt": [
+        "5",
+        4
+      ],
+      "negative_prompt": "残留水印，残留贴纸，残留动物或人物，模糊涂抹，接缝，构图变化，物体移位",
+      "resolution": 0
+    }
+  },
+  "12": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "8",
+        0
+      ],
+      "positive": [
+        "10",
+        0
+      ],
+      "negative": [
+        "10",
+        1
+      ],
+      "latent_image": [
+        "40",
+        0
+      ],
+      "seed": 802146,
+      "steps": 20,
+      "cfg": 1.0,
+      "sampler_name": "euler_ancestral",
+      "scheduler": "sgm_uniform",
+      "denoise": 1.0
+    }
+  },
+  "13": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "12",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ]
+    }
+  },
+  "14": {
+    "class_type": "QWMComposite",
+    "inputs": {
+      "original": [
+        "1",
+        0
+      ],
+      "edited_crop": [
+        "13",
+        0
+      ],
+      "mask": [
+        "4",
+        0
+      ],
+      "geometry": [
+        "5",
+        2
+      ],
+      "feather": 6,
+      "align": true,
+      "color_match": true
+    }
+  },
+  "15": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "14",
+        0
+      ],
+      "filename_prefix": "QwenWatermark/restored"
+    }
+  },
+  "16": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "14",
+        1
+      ],
+      "filename_prefix": "QwenWatermark/comparison"
+    }
+  },
+  "17": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "3",
+        2
+      ],
+      "filename_prefix": "QwenWatermark/detection"
+    }
+  },
+  "18": {
+    "class_type": "PreviewImage",
+    "inputs": {
+      "images": [
+        "5",
+        0
+      ]
+    }
+  },
+  "19": {
+    "class_type": "MaskToImage",
+    "inputs": {
+      "mask": [
+        "4",
+        0
+      ]
+    }
+  },
+  "20": {
+    "class_type": "PreviewImage",
+    "inputs": {
+      "images": [
+        "19",
+        0
+      ]
+    }
+  },
+  "21": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "13",
+        0
+      ],
+      "filename_prefix": "QwenWatermark/edited_crop"
+    }
+  },
+  "22": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "14",
+        2
+      ]
+    }
+  },
+  "23": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "3",
+        1
+      ]
+    }
+  },
+  "24": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "5",
+        3
+      ]
+    }
+  },
+  "25": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "4",
+        2
+      ]
+    }
+  },
+  "26": {
+    "class_type": "QWMResidualDetect",
+    "inputs": {
+      "image": [
+        "14",
+        0
+      ],
+      "clip": [
+        "2",
+        0
+      ],
+      "detection_side": 1024,
+      "expand": 24,
+      "max_tokens": 384,
+      "edit_prompt": "",
+      "allowed_mask": [
+        "4",
+        0
+      ],
+      "enabled": false,
+      "min_confidence": 0.8,
+      "first_report": [
+        "14",
+        2
+      ]
+    }
+  },
+  "27": {
+    "class_type": "QWMRefineMask",
+    "inputs": {
+      "image": [
+        "14",
+        0
+      ],
+      "mask": [
+        "26",
+        0
+      ],
+      "boxes_json": [
+        "26",
+        1
+      ],
+      "method": "auto",
+      "sam_model": "sam_vit_b_01ec64.pth",
+      "device": "auto",
+      "dilation": 8,
+      "adaptive_dilation": false
+    }
+  },
+  "28": {
+    "class_type": "QWMPrepare",
+    "inputs": {
+      "image": [
+        "14",
+        0
+      ],
+      "mask": [
+        "27",
+        0
+      ],
+      "context_pixels": 384,
+      "max_side": 768,
+      "pre_inpaint": "none",
+      "inpaint_radius": 3,
+      "edit_prompt": [
+        "26",
+        3
+      ],
+      "boxes_json": [
+        "26",
+        1
+      ]
+    }
+  },
+  "29": {
+    "class_type": "TextEncodeQwenImage21",
+    "inputs": {
+      "clip": [
+        "2",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ],
+      "images.image_1": [
+        "28",
+        0
+      ],
+      "prompt": [
+        "28",
+        4
+      ],
+      "negative_prompt": "残留水印，残留贴纸，重影，模糊涂抹，接缝，构图变化，物体移位",
+      "resolution": 0
+    }
+  },
+  "30": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "8",
+        0
+      ],
+      "positive": [
+        "29",
+        0
+      ],
+      "negative": [
+        "29",
+        1
+      ],
+      "latent_image": [
+        "44",
+        0
+      ],
+      "seed": 240517,
+      "steps": 16,
+      "cfg": 1.0,
+      "sampler_name": "euler_ancestral",
+      "scheduler": "sgm_uniform",
+      "denoise": 1.0
+    }
+  },
+  "31": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "30",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ]
+    }
+  },
+  "32": {
+    "class_type": "QWMComposite",
+    "inputs": {
+      "original": [
+        "14",
+        0
+      ],
+      "edited_crop": [
+        "31",
+        0
+      ],
+      "mask": [
+        "27",
+        0
+      ],
+      "geometry": [
+        "28",
+        2
+      ],
+      "feather": 4,
+      "align": true,
+      "color_match": true
+    }
+  },
+  "37": {
+    "class_type": "QWMFinal",
+    "inputs": {
+      "original": [
+        "1",
+        0
+      ],
+      "initial_mask": [
+        "4",
+        0
+      ],
+      "detection_report": [
+        "3",
+        1
+      ],
+      "first_pass": [
+        "14",
+        0
+      ],
+      "first_report": [
+        "14",
+        2
+      ],
+      "residual_report": [
+        "26",
+        1
+      ],
+      "second_pass": [
+        "32",
+        0
+      ],
+      "second_report": [
+        "32",
+        2
+      ],
+      "residual_mask": [
+        "27",
+        0
+      ]
+    }
+  },
+  "33": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "37",
+        0
+      ],
+      "filename_prefix": "QwenWatermark/final"
+    }
+  },
+  "34": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "37",
+        1
+      ],
+      "filename_prefix": "QwenWatermark/final_comparison"
+    }
+  },
+  "38": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "37",
+        2
+      ]
+    }
+  },
+  "35": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "26",
+        1
+      ]
+    }
+  },
+  "36": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "26",
+        2
+      ],
+      "filename_prefix": "QwenWatermark/residual_check"
+    }
+  },
+  "41": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "5",
+        4
+      ]
+    }
+  },
+  "42": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "28",
+        4
+      ]
+    }
+  },
+  "39": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "5",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ]
+    }
+  },
+  "40": {
+    "class_type": "SetLatentNoiseMask",
+    "inputs": {
+      "samples": [
+        "39",
+        0
+      ],
+      "mask": [
+        "5",
+        1
+      ]
+    }
+  },
+  "43": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "28",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ]
+    }
+  },
+  "44": {
+    "class_type": "SetLatentNoiseMask",
+    "inputs": {
+      "samples": [
+        "43",
+        0
+      ],
+      "mask": [
+        "28",
+        1
+      ]
+    }
+  }
+}

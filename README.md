@@ -7,6 +7,8 @@
 
 ## v1.3 贴回与产品化改动
 
+人物肢体、服装边缘或建筑结构被重画时，可导入 `workflows/qwen21_watermark_structure.json`。该版本使用更宽的 384px 上下文、保留原参考图（`pre_inpaint=none`）、原裁剪 VAE 编码和遮罩加噪，限制采样范围；默认仅做一采，最终状态为 `needs_review`。在“02 自动定位 / 手动改框”的 `edit_prompt` 中填写要移除的叠加物与要保留的姿态/线条；“实际送入模型的编辑提示词”会显示完整指令。结构保护版支持已有 v1.3 节点，仅需重新导入 JSON。
+
 - 贴回不再用 Telea 重建整块选区后混色，也不把带遮挡的原像素混回生成图。全程保持 float32 RGB；软遮罩按修复范围处理。
 - 只在未编辑上下文中估计有界颜色校正，并使用保留样本验证改善；颜色已经匹配时直接保留。边缘只延续选区外颜色差，保留生成纹理。
 - 默认按类型选择预清理：文字/半透明水印直接编辑，块状遮挡与贴纸预清理；预清理在缩小后的局部裁剪内执行，选区外上下文不经过 8-bit 重编码。局部坐标写入几何报告，编辑提示词使用检测到的周围材质。
@@ -19,6 +21,7 @@
 ```powershell
 python scripts/run_batch.py "C:\图片目录" --output "C:\处理结果" --resume
 python scripts/replay_composite.py "已保存的任务目录" --mask "实际遮罩.png"
+python scripts/run_workflow.py "C:\图片\原图.png" --structure-protection --edit-prompt "只移除贴纸，保留人物坐姿、腿部交叠关系、服装轮廓和地面透视。" --output "C:\结果"
 ```
 
 `replay_composite.py` 可复用正常的一采裁剪重新贴回，无需重新采样；SAM/手绘任务必须使用实际遮罩。
@@ -97,7 +100,7 @@ python scripts/run_workflow.py "C:\图片\原图.png" --edit-prompt "保留人�
 - 普通文字 + Logo 回归：两处 `effective_dilation=12`，选区外最大差异 `0`。
 - 不规则贴纸回归：SAM 允许轮廓在安全边界内越过检测框，自动外扩示例为 `32 px`，选区外最大差异 `0`。
 - 手绘遮罩回归：大型区域自适应外扩 `38 px`，选区外最大差异 `0`。
-- Python 回归测试：`57 passed`（v1.3，含文本空值兼容回归）。
+- Python 回归测试：`59 passed`（v1.3，含文本空值兼容、遮罩采样与实际提示词连接回归）。
 
 如果点击运行出现 `Cannot read properties of null (reading 'replace')`，请重新导入已修复的工作流 JSON。旧导出器将已连线的文本控件占位值保存为 `null`，会触发 `comfyui-custom-scripts` 的文本预设序列化错误；修复后的值为 `""`，参数顺序与连线保持正确。仅此修复无需重装模型或重启后端。
 

@@ -1,8 +1,8 @@
 {
-  "id": "2e7eda58-c106-4d15-a3aa-5335e10dca9b",
+  "id": "38b90345-8368-4a58-9a8f-fef8448522c9",
   "revision": 0,
-  "last_node_id": 38,
-  "last_link_id": 76,
+  "last_node_id": 42,
+  "last_link_id": 78,
   "nodes": [
     {
       "id": 1,
@@ -507,7 +507,8 @@
           "name": "edit_prompt",
           "type": "STRING",
           "links": [
-            14
+            14,
+            77
           ]
         }
       ],
@@ -1876,7 +1877,8 @@
           "name": "edit_prompt",
           "type": "STRING",
           "links": [
-            50
+            50,
+            78
           ]
         }
       ],
@@ -2547,6 +2549,76 @@
       "widgets_values_named": {
         "filename_prefix": "QwenWatermark/residual_check"
       }
+    },
+    {
+      "id": 41,
+      "type": "PreviewAny",
+      "title": "实际送入模型的编辑提示词",
+      "pos": [
+        1740,
+        1600
+      ],
+      "size": [
+        310,
+        440
+      ],
+      "flags": {},
+      "order": 37,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "STRING",
+          "link": 77
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    },
+    {
+      "id": 42,
+      "type": "PreviewAny",
+      "title": "实际送入二采的编辑提示词",
+      "pos": [
+        4670,
+        1700
+      ],
+      "size": [
+        310,
+        440
+      ],
+      "flags": {},
+      "order": 38,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "STRING",
+          "link": 78
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
     }
   ],
   "links": [
@@ -3157,6 +3229,22 @@
       36,
       0,
       "IMAGE"
+    ],
+    [
+      77,
+      5,
+      4,
+      41,
+      0,
+      "STRING"
+    ],
+    [
+      78,
+      28,
+      4,
+      42,
+      0,
+      "STRING"
     ]
   ],
   "groups": [
