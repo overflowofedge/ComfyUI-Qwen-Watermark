@@ -1,8 +1,27 @@
-# ComfyUI Qwen Watermark
+# ComfyUI Qwen Watermark 1.3.0
 
 一套在本机 ComfyUI 运行的去水印工作流：Qwen3-VL 会在一次推理中完成通用扫描和 Logo 专项复核，自动识别文字、半透明 Logo、马赛克、矩形色块和不规则贴纸，再按类型选择矩形框或 SAM，交给 Qwen Image 2.1 做局部修复。第一次修复后还会自动检查残留，并在需要时最多追加一次局部修复；未被遮罩覆盖的像素会被逐像素保护。
 
 > 仅处理你拥有版权或已获得授权的图片。遮挡下完全不存在的真实像素无法被恢复，模型只能根据上下文生成合理内容。
+
+
+## v1.3 贴回与产品化改动
+
+- 贴回不再用 Telea 重建整块选区后混色，也不把带遮挡的原像素混回生成图。全程保持 float32 RGB；软遮罩按修复范围处理。
+- 只在未编辑上下文中估计有界颜色校正，并使用保留样本验证改善；颜色已经匹配时直接保留。边缘只延续选区外颜色差，保留生成纹理。
+- 默认按类型选择预清理：文字/半透明水印直接编辑，块状遮挡与贴纸预清理；预清理在缩小后的局部裁剪内执行，选区外上下文不经过 8-bit 重编码。局部坐标写入几何报告，编辑提示词使用检测到的周围材质。
+- 残留复检限于初始修复范围，二采遮罩限制在该范围的 24px 安全边内。取消按固定位置平移水印坐标的样例特例。
+- `QWMFinal` 始终输出一个最终结果和质量报告：空选区返回原图；二采接缝恶化时保留一采；上下文严重失真时退回原图并明确标记失败。
+- CLI 默认只保存最终图、对比和报告；`--debug-output` 保存完整诊断图，`--skip-residual` 省去视觉复检。批处理按图片顺序执行，失败继续，可按输入和工作流校验续跑。
+
+升级必须同时更新自定义节点与 JSON，重启 ComfyUI 后重新导入。实际运行请看“最终结果（自动择优）”和“最终质量报告”，一采候选仅用于检查。完整行为和验收边界见 [产品化与验收指南](docs/产品化与验收指南.md)。
+
+```powershell
+python scripts/run_batch.py "C:\图片目录" --output "C:\处理结果" --resume
+python scripts/replay_composite.py "已保存的任务目录" --mask "实际遮罩.png"
+```
+
+`replay_composite.py` 可复用正常的一采裁剪重新贴回，无需重新采样；SAM/手绘任务必须使用实际遮罩。
 
 ## 效果示例
 
@@ -47,7 +66,7 @@
 
 ### 2. 安装自定义节点
 
-`QWMDetect`、`QWMResidualDetect`、`QWMRefineMask`、`QWMPrepare`、`QWMComposite` 是本项目新增的五个自定义节点，不是 ComfyUI 内置节点。只导入 JSON 会出现红色缺失节点；请运行：
+`QWMDetect`、`QWMResidualDetect`、`QWMRefineMask`、`QWMPrepare`、`QWMComposite`、`QWMFinal` 是本项目新增的六个自定义节点，不是 ComfyUI 内置节点。只导入 JSON 会出现红色缺失节点；请运行：
 
 ```powershell
 python scripts/install_nodes.py --comfy-root "E:\ComfyUI-aki-v3\ComfyUI-aki-v3\ComfyUI"
@@ -60,13 +79,16 @@ python scripts/install_nodes.py --comfy-root "E:\ComfyUI-aki-v3\ComfyUI-aki-v3\C
 1. 导入 `workflows/qwen21_watermark.json`。
 2. 在“01 上传原图”节点重新选择图片。
 3. 默认保持 `auto_qwen + auto`，工作流会按遮挡类型自动选择 `box` 或 `sam`；仅在低置信度、误检或漏检时改用手动框/遮罩。
-4. 运行后查看“定位预览”“细化遮罩预览”“残留复检”和左右对比。
+4. 如果要手动修复，在“01 上传原图”的遮罩编辑器中画白需要移除的区域，把“02 自动定位 / 手动改框”的 `mode` 改成 `manual_mask`；该工作流已预连 `MASK` 输入，并会自动外扩边缘。
+5. 需要改变修复内容时，在“02 自动定位 / 手动改框”的 `edit_prompt` 输入框填写补充要求。编辑节点的 `prompt` 是自动连线，不能直接在 TextEncode 节点内编辑。
+6. 运行后查看“定位预览”“细化遮罩预览”“残留复检”和左右对比。
 
 只想确认自动框选时，导入 `workflows/qwen_watermark_detection.json`。命令行批处理示例：
 
 ```powershell
 python scripts/run_workflow.py "C:\图片\原图.png" --output outputs\my_image
 python scripts/run_workflow.py samples\demo_watermarked.png --detect-only --output outputs\detection
+python scripts/run_workflow.py "C:\图片\原图.png" --edit-prompt "保留人物和背景结构，只去除右下角叠加物。"
 ```
 
 ## 结果与验证
@@ -75,14 +97,14 @@ python scripts/run_workflow.py samples\demo_watermarked.png --detect-only --outp
 - 普通文字 + Logo 回归：两处 `effective_dilation=12`，选区外最大差异 `0`。
 - 不规则贴纸回归：SAM 允许轮廓在安全边界内越过检测框，自动外扩示例为 `32 px`，选区外最大差异 `0`。
 - 手绘遮罩回归：大型区域自适应外扩 `38 px`，选区外最大差异 `0`。
-- Python 回归测试：`31 passed`。
+- Python 回归测试：`55 passed`（v1.3）。
 
 完整实测数据见 [`TEST_RESULTS.md`](TEST_RESULTS.md)。
 
 ## 项目结构
 
 ```text
-custom_nodes/ComfyUI-Qwen-Watermark/   五个自定义节点
+custom_nodes/ComfyUI-Qwen-Watermark/   六个自定义节点
 workflows/                              可导入的 UI/API 工作流
 scripts/                                安装、运行、构建和验证脚本
 packaging/                              分享包说明、安装器和许可证

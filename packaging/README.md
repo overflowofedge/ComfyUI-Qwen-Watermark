@@ -1,14 +1,21 @@
-# Qwen Image 2.1 去水印工作流 1.2.0
+# Qwen Image 2.1 去水印工作流 1.3.0
 
-这是可分享的本机 ComfyUI 工作流包。它会自动识别普通/半透明文字与 Logo、马赛克、矩形色块和不规则贴纸，自动选择 `box` 或 SAM，并在第一次修复后检查残留、按需追加一次局部修复。也支持手动框和手绘遮罩。完整参数表和提示词模板见 [`docs/参数与提示词.md`](docs/参数与提示词.md)。
+这是可分享的本机 ComfyUI 工作流包。它会自动识别普通/半透明文字与 Logo、马赛克、矩形色块和不规则贴纸，自动选择 `box` 或 SAM，并在原修复范围内检查残留、按需追加一次局部修复，并按质量检查选择最终结果。也支持手动框和手绘遮罩。完整参数表和提示词模板见 [`docs/参数与提示词.md`](docs/参数与提示词.md)。
+
+## 升级与结果
+
+必须同时更新节点与工作流 JSON，重启 ComfyUI，再重新导入 JSON。默认 auto 对文字和半透明水印直接编辑，对块状遮挡和贴纸预清理。v1.3 移除了 Telea 回贴混色，使用上下文验证的颜色校正；二采不允许扩大到无关区域。查看“最终结果”和“最终质量报告”，不要把“一采候选”作为自动交付结果。
+
+`needs_review` 表示需要检查，`rejected_first_pass` 表示生成失真、最终输出已退回原图；二采完成不会自动声称残留已清除。详见 `docs/产品化与验收指南.md`。安装器会备份旧节点；压缩包附 SHA-256 清单。
 
 ## 包含内容
 
 - `workflows/qwen21_watermark.json`：可导入 ComfyUI 的工作流。
-- `custom_nodes/ComfyUI-Qwen-Watermark/`：工作流必需的五个自定义节点。
+- `custom_nodes/ComfyUI-Qwen-Watermark/`：工作流必需的六个自定义节点。
 - `docs/参数与提示词.md`：按场景的参数表、正负向提示词和排错顺序。
 - `install.py`：安装节点、依赖并检查模型。
 - `docs/images/`：公开演示图；不包含用户原图、输出目录或诊断日志。
+- `scripts/`：单图运行、顺序批处理与免采样重新贴回。脚本需使用已安装 requests、numpy、Pillow 和 OpenCV 的 Python。
 - `LICENSE`：本包代码许可。模型权重遵循各自许可，不包含在本包内。
 
 ## 环境要求
@@ -56,7 +63,7 @@ SAM ViT-B 官方下载地址：<https://dl.fbaipublicfiles.com/segment_anything/
 
 - 导入后节点为红色：未安装本包中的自定义节点，或安装后没有重启 ComfyUI。
 - 点击运行没有结果：在 LoadImage 节点重新选择图片；若状态为 `no_overlay_detected`，填写 `hint` 或使用手动框/遮罩。
-- 手绘遮罩仍有残影：确认使用 1.2.0 节点并开启 `adaptive_dilation`；增加 `dilation`，不要用更大的 `feather` 代替遮罩外扩。
+- 手绘遮罩仍有残影：确认使用 1.3.0 节点并开启 `adaptive_dilation`；增加 `dilation`，不要用更大的 `feather` 代替遮罩外扩。
 - 自动识别漏掉 Logo：先将 `detection_side` 保持为 1024，并在 `hint` 中描述位置；重要图片仍应查看定位预览并人工确认低置信度结果。
 - 模型下拉框为空：模型目录或文件名不匹配。
 

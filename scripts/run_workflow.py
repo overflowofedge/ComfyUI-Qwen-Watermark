@@ -1,4 +1,5 @@
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -38,8 +39,13 @@ def main():
     parser.add_argument("--detect-only", action="store_true")
     parser.add_argument("--boxes", type=Path, help="手动选区 JSON，指定后跳过自动识别")
     parser.add_argument("--hint", default="")
+    parser.add_argument("--edit-prompt", default="", help="追加到自动编辑提示词的用户指令")
     parser.add_argument("--steps", type=_positive_int, default=20)
     parser.add_argument("--seed", type=int, default=802146)
+    parser.add_argument("--skip-residual", action="store_true", help="跳过视觉残留复检，仅执行一采和贴回")
+    parser.add_argument("--no-color-match", action="store_true", help="关闭上下文颜色校正（用于诊断）")
+    parser.add_argument("--feather", type=_nonnegative_int, default=6, help="边缘颜色过渡宽度；0 为直接贴回")
+    parser.add_argument("--debug-output", action="store_true", help="保存定位、裁剪、一采图等诊断文件")
     parser.add_argument("--max-side", type=_positive_int, default=768)
     parser.add_argument("--detection-side", type=_positive_int, default=1024)
     parser.add_argument("--mask-method", choices=["auto", "sam", "box"], default="auto",
@@ -48,8 +54,8 @@ def main():
     parser.add_argument("--sam-dilation", type=_nonnegative_int, default=12, help="SAM 轮廓向外补偿的基础像素数")
     parser.add_argument("--fixed-sam-dilation", action="store_true",
                         help="关闭按贴片尺寸自动增加轮廓补偿")
-    parser.add_argument("--pre-inpaint", choices=["none", "telea", "ns"], default="telea",
-                        help="先用 OpenCV 填充遮罩再交给 Qwen；不规则贴片可尝试 telea/ns")
+    parser.add_argument("--pre-inpaint", choices=["auto", "none", "telea", "ns"], default="auto",
+                        help="auto 保留文字/半透明水印的可见背景；块状遮挡先局部预清理")
     parser.add_argument("--inpaint-radius", type=_positive_int, default=5)
     parser.add_argument("--timeout", type=_positive_int, default=3600)
     parser.add_argument("--output", type=Path, default=ROOT / "outputs")
@@ -64,7 +70,8 @@ def main():
     session.trust_env = False
     server = args.server.rstrip("/")
     name = "qwen_watermark_detection" if args.detect_only else "qwen21_watermark"
-    graph = json.loads((ROOT / "workflows" / f"{name}.api.json").read_text(encoding="utf-8"))
+    workflow_bytes = (ROOT / "workflows" / f"{name}.api.json").read_bytes()
+    graph = json.loads(workflow_bytes)
     try:
         infos_response = session.get(server + "/object_info", timeout=30)
     except requests.RequestException as exc:
@@ -91,7 +98,8 @@ def main():
     if not upload.get("name"):
         raise RuntimeError("ComfyUI 上传接口没有返回文件名。")
     graph["1"]["inputs"]["image"] = "/".join(x for x in [upload.get("subfolder", ""), upload["name"]] if x)
-    graph["3"]["inputs"].update(hint=args.hint, detection_side=args.detection_side)
+    graph["3"]["inputs"].update(hint=args.hint, edit_prompt=args.edit_prompt,
+                                  detection_side=args.detection_side)
     if args.boxes:
         graph["3"]["inputs"].update(mode="manual_boxes", boxes_json=args.boxes.read_text(encoding="utf-8"))
     if not args.detect_only:
@@ -100,6 +108,14 @@ def main():
         graph["5"]["inputs"]["max_side"] = args.max_side
         graph["5"]["inputs"].update(pre_inpaint=args.pre_inpaint, inpaint_radius=args.inpaint_radius)
         graph["12"]["inputs"].update(seed=args.seed, steps=args.steps)
+        graph["28"]["inputs"]["max_side"] = args.max_side
+        graph["30"]["inputs"]["seed"] = args.seed + 1
+        graph["14"]["inputs"].update(feather=args.feather, color_match=not args.no_color_match)
+        graph["32"]["inputs"]["color_match"] = not args.no_color_match
+        graph["26"]["inputs"]["enabled"] = not args.skip_residual
+        if not args.debug_output:
+            for key in ("15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "35", "36"):
+                graph.pop(key, None)
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     try:
@@ -172,11 +188,13 @@ def main():
     reports = {}
     for node_id, key in [("3", "detection"), ("4", "refine"), ("5", "prepare"), ("14", "composite"),
                          ("26", "residual_detection"), ("27", "residual_refine"),
-                         ("28", "residual_prepare"), ("32", "residual_composite")]:
+                         ("28", "residual_prepare"), ("32", "residual_composite"), ("37", "quality")]:
         texts = history.get("outputs", {}).get(node_id, {}).get("text", [])
         if texts:
             reports[key] = json.loads(texts[0])
-    if args.detect_only:
+    if "restored" in files and "quality" in reports:
+        reports["status"] = reports["quality"]["status"]
+    elif args.detect_only:
         reports["status"] = "detection_complete"
     elif reports.get("prepare", {}).get("status") == "no_overlay_detected":
         reports["status"] = "no_overlay_detected"
@@ -194,6 +212,10 @@ def main():
     else:
         raise RuntimeError("ComfyUI 执行结束但没有生成修复图；请检查 history.json。")
     reports["elapsed_seconds"] = round(time.monotonic() - start, 2)
+    reports["input_sha256"] = hashlib.sha256(args.image.read_bytes()).hexdigest()
+    reports["graph_sha256"] = hashlib.sha256(json.dumps(graph, sort_keys=True).encode("utf-8")).hexdigest()
+    reports["workflow_sha256"] = hashlib.sha256(workflow_bytes).hexdigest()
+    reports["options"] = {"skip_residual": args.skip_residual, "steps": args.steps, "seed": args.seed, "debug_output": args.debug_output}
     reports["prompt_id"] = prompt_id
     reports["files"] = files
     (output / "report.json").write_text(json.dumps(reports, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -202,4 +224,5 @@ def main():
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
     main()

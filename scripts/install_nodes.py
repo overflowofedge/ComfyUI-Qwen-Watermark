@@ -19,7 +19,7 @@ def main():
         source = ROOT / "custom_nodes" / name / filename
         shutil.copy2(source, target / filename)
     print("Installed:", target)
-    print("Reload ComfyUI to register the five nodes.")
+    print("Restart ComfyUI to register the six nodes (v1.3.0).")
 
 
 if __name__ == "__main__":

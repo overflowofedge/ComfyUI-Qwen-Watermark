@@ -27,10 +27,16 @@
       "mode": "auto_qwen",
       "boxes_json": "{\"coordinate_space\":\"pixels\",\"boxes\":[]}",
       "detection_side": 1024,
-      "expand": 16,
+      "expand": 20,
       "max_tokens": 512,
       "hint": "",
-      "padding_ratio": 0.35
+      "edit_prompt": "",
+      "padding_ratio": 0.35,
+      "manual_mask": [
+        "1",
+        1
+      ],
+      "min_confidence": 0.65
     }
   },
   "4": {
@@ -68,8 +74,16 @@
       ],
       "context_pixels": 96,
       "max_side": 768,
-      "pre_inpaint": "telea",
-      "inpaint_radius": 5
+      "pre_inpaint": "auto",
+      "inpaint_radius": 5,
+      "edit_prompt": [
+        "3",
+        3
+      ],
+      "boxes_json": [
+        "3",
+        1
+      ]
     }
   },
   "6": {
@@ -122,8 +136,8 @@
         0
       ],
       "prompt": [
-        "3",
-        3
+        "5",
+        4
       ],
       "negative_prompt": "残留水印，残留贴纸，残留动物或人物，模糊涂抹，接缝，构图变化，物体移位",
       "resolution": 0
@@ -189,7 +203,8 @@
         2
       ],
       "feather": 6,
-      "align": true
+      "align": true,
+      "color_match": true
     }
   },
   "15": {
@@ -308,7 +323,18 @@
       ],
       "detection_side": 1024,
       "expand": 24,
-      "max_tokens": 384
+      "max_tokens": 384,
+      "edit_prompt": "",
+      "allowed_mask": [
+        "4",
+        0
+      ],
+      "enabled": true,
+      "min_confidence": 0.8,
+      "first_report": [
+        "14",
+        2
+      ]
     }
   },
   "27": {
@@ -346,8 +372,16 @@
       ],
       "context_pixels": 128,
       "max_side": 768,
-      "pre_inpaint": "telea",
-      "inpaint_radius": 3
+      "pre_inpaint": "auto",
+      "inpaint_radius": 3,
+      "edit_prompt": [
+        "26",
+        3
+      ],
+      "boxes_json": [
+        "26",
+        1
+      ]
     }
   },
   "29": {
@@ -366,8 +400,8 @@
         0
       ],
       "prompt": [
-        "26",
-        3
+        "28",
+        4
       ],
       "negative_prompt": "残留水印，残留贴纸，重影，模糊涂抹，接缝，构图变化，物体移位",
       "resolution": 0
@@ -433,27 +467,78 @@
         2
       ],
       "feather": 4,
-      "align": true
+      "align": true,
+      "color_match": true
+    }
+  },
+  "37": {
+    "class_type": "QWMFinal",
+    "inputs": {
+      "original": [
+        "1",
+        0
+      ],
+      "initial_mask": [
+        "4",
+        0
+      ],
+      "detection_report": [
+        "3",
+        1
+      ],
+      "first_pass": [
+        "14",
+        0
+      ],
+      "first_report": [
+        "14",
+        2
+      ],
+      "residual_report": [
+        "26",
+        1
+      ],
+      "second_pass": [
+        "32",
+        0
+      ],
+      "second_report": [
+        "32",
+        2
+      ],
+      "residual_mask": [
+        "27",
+        0
+      ]
     }
   },
   "33": {
     "class_type": "SaveImage",
     "inputs": {
       "images": [
-        "32",
+        "37",
         0
       ],
-      "filename_prefix": "QwenWatermark/restored_verified"
+      "filename_prefix": "QwenWatermark/final"
     }
   },
   "34": {
     "class_type": "SaveImage",
     "inputs": {
       "images": [
-        "32",
+        "37",
         1
       ],
-      "filename_prefix": "QwenWatermark/comparison_verified"
+      "filename_prefix": "QwenWatermark/final_comparison"
+    }
+  },
+  "38": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "37",
+        2
+      ]
     }
   },
   "35": {

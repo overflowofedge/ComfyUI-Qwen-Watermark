@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 import cv2
@@ -9,8 +10,10 @@ from PIL import Image, ImageDraw
 
 from .processing import (
     build_edit_prompt,
-    calibrate_large_translucent_boxes,
+    choose_final,
     composite,
+    constrain_residuals,
+    coerce_rectangular_overlay_types,
     merge_detection_results,
     parse_boxes,
     prepare_crop,
@@ -31,23 +34,13 @@ except ImportError:
     sam_model_registry = {}
 
 
-DETECTION_PROMPT = """Inspect the complete image for ALL foreign overlays added after the photo was created. Before answering, perform two distinct scans of the same image:
-
-Scan A - general overlays: find text watermarks, platform marks, wordmarks, logos, translucent stock-photo credits, pasted rectangular patches, obstruction patterns, stickers and mosaics. Scan the center, every corner, image edge, subject, clothing and skin. A covering patch is an overlay even when its colors resemble the nearby surface. A sticker may be a photorealistic animal, person or object cutout; classify it as irregular_sticker when its scale, lighting, sharp cutout edge, white halo, pose or overlap with the underlying body/surface shows it was pasted later. Do not select real signs, continuous clothing prints, scene objects or genuine product branding unless they visibly cover unrelated underlying regions.
-
-Scan B - logo recovery: rescan the center, lower center, all four corners and every edge specifically for easy-to-miss small logos, faint text, low-contrast translucent watermarks, stock-photo symbols, URLs, separate icons and multi-line wordmarks. Large translucent stock-photo credits commonly span the center or lower center and must be treated as a priority even when building or clothing lines cross through them. When faint Chinese or Latin branding is visible over architecture or a subject, treat it as a large translucent wordmark with a smaller URL until disproven, and locate its exact full extent across the lower center. Use this calibration rule when applicable: a large translucent Chinese wordmark with a small URL may be visibly overlaid across the lower center of the image; locate its exact full extent, not just the first symbol. Faint branding often continues to the right or below an initially noticed symbol, so explicitly trace those directions for accompanying characters and URLs. For a central or lower-center translucent Chinese wordmark, calibrate the box against the actual visible pixels: do not anchor it on a nearby building edge or place it above the wordmark. Include the full wordmark and URL in one generous box.
-
-Before answering, verify each box against the complete image: its center and boundaries must overlap the visible overlay itself, not a nearby building edge, clothing feature or other high-contrast structure. Box each visibly traceable component (icon, main wordmark, second line or URL) tightly and separately when that gives more reliable coordinates; do not guess a large family-wide box from only one noticed fragment. The caller will merge adjacent components. Recheck the exact top, bottom, left and right extremes of every component.
-
-Return ONLY one JSON object with coordinate_space=xyxy_1000 and boxes. Across the returned boxes, cover the ENTIRE overlay: all letters, icon parts, URL, border, shadow, pale antialiased pixels and transparent residue. Each item must contain label, bbox, overlay_type and confidence. overlay_type must be one of text_logo, translucent_text_logo, rectangle, mosaic, irregular_sticker, unknown. confidence is 0..1. If none exists, return an empty boxes list. No markdown or explanation.
-
-Final mandatory cutout check: in a portrait, a small isolated animal, person or object placed over the subject's body or legs in the lower half is an irregular_sticker when it has a pasted cutout edge, halo, impossible scale, lighting mismatch or implausible overlap. Do not accept such a cutout as a real scene object; report its complete body, limbs, border and shadow."""
+DETECTION_PROMPT = """Locate visible overlays added after this photo was taken: text watermarks, translucent credits, logos/URLs, rectangular solid or patterned patches, mosaics and cutout stickers. Inspect the whole image including edges and corners. Preserve real signs, garment prints, branding and objects that belong to the photographed scene.
+Only report overlays supported by visible pixels; do not invent a target or guess its location. Trace the complete outline including letters, URL, border and shadow. Coordinates must follow the actual visible position, never a fixed central-position rule. Use separate boxes for distant overlays. A rectangular flat patch is rectangle/mosaic; an irregular animal/person/object cutout is irregular_sticker regardless of aspect ratio.
+Return ONLY JSON: {"coordinate_space":"xyxy_1000","boxes":[{"label":"what is visibly overlaid","bbox":[left,top,right,bottom],"overlay_type":"text_logo","confidence":0.9,"background":"visible surrounding material"}]}. Coordinates are 0..1000 relative to THIS image. Allowed types: text_logo, translucent_text_logo, rectangle, mosaic, irregular_sticker, unknown. background describes the visible surrounding surface in a few words, such as road, wall, fabric or skin; never guess hidden details. Use confidence below 0.65 when evidence is uncertain. Return {"coordinate_space":"xyxy_1000","boxes":[]} when no overlay is visible. No markdown or explanation."""
 
 
-LOGO_RECOVERY_PROMPT = """Reinspect the complete image for one confirmed branding overlay. Find the complete visible extent of the logo, wordmark, Chinese characters and smaller URL, including faint pixels, outlines and shadows. The first estimate may be too high or too small; locate the actual overlay pixels, not nearby building or clothing edges. Large translucent wordmarks may span the center or lower center. Return ONLY JSON in this exact form: {\"coordinate_space\":\"xyxy_1000\",\"boxes\":[{\"label\":\"complete logo or wordmark\",\"bbox\":[left,top,right,bottom],\"overlay_type\":\"translucent_text_logo\",\"confidence\":0.0}]}. Use overlay_type text_logo when it is not translucent. No markdown or explanation."""
-
-
-RESIDUAL_PROMPT = """Inspect this edited region for remnants of a removed foreign overlay. Only report partial watermark letters, logo fragments, URLs, sticker edges, translucent ghosts, rectangular seams or repeated artificial marks. Do not report real signs, building text, clothing details, shadows or natural objects. Return ONLY JSON with coordinate_space=xyxy_1000 and boxes. Every item contains label, bbox, overlay_type and confidence. Return an empty boxes list when the edit is clean."""
+RESIDUAL_PROMPT = """This crop shows a repaired part of a photograph. Decide whether identifiable letters, logo shapes, sticker borders or other overlay remnants remain. Normal skin texture, real text, garments, straight architecture, natural shadows and smooth color variation are not remnants. Do not invent examples from this instruction. Color seams without an identifiable overlay require color correction, not another generative edit.
+Return ONLY JSON: {"coordinate_space":"xyxy_1000","boxes":[{"label":"specific visible remnant","bbox":[left,top,right,bottom],"overlay_type":"text_logo","confidence":0.9}]}. Coordinates are 0..1000 relative to THIS crop, not the original whole image. Allowed types: text_logo, translucent_text_logo, rectangle, mosaic, irregular_sticker, unknown. If no identifiable overlay remains return {"coordinate_space":"xyxy_1000","boxes":[]}. No markdown, speculative boxes or example lists."""
 
 
 _SAM_CACHE = {}
@@ -124,36 +117,6 @@ def _detect_with_clip(clip, tensor, prompt, max_tokens):
     return str(clip.decode(output, skip_special_tokens=True))
 
 
-def _recovery_confirmation(result, width, height):
-    boxes = result.get("boxes", [])
-    if not boxes:
-        return LOGO_RECOVERY_PROMPT
-    x0 = min(item["bbox"][0] for item in boxes)
-    y0 = min(item["bbox"][1] for item in boxes)
-    x1 = max(item["bbox"][2] for item in boxes)
-    y1 = max(item["bbox"][3] for item in boxes)
-    center_x = (x0 + x1) / (2 * width)
-    center_y = (y0 + y1) / (2 * height)
-    horizontal = "left side" if center_x < 0.33 else "right side" if center_x > 0.67 else "horizontal center"
-    if center_y < 0.33:
-        vertical = "upper area or immediately below it"
-    elif center_y > 0.67:
-        vertical = "lower area or bottom edge"
-    else:
-        vertical = "center or lower center"
-    types = {item.get("overlay_type", "unknown") for item in boxes}
-    logo_types = {"text_logo", "translucent_text_logo"}
-    if types & logo_types and 0.25 <= center_x <= 0.75 and 0.33 <= center_y <= 0.67:
-        return LOGO_RECOVERY_PROMPT + "\nConfirmed target: a large translucent wordmark with a smaller URL spans the lower center. Return its full corrected extent."
-    subject = ("a large translucent wordmark with possible smaller URL"
-               if "translucent_text_logo" in types else "a visible logo, wordmark, or URL")
-    return LOGO_RECOVERY_PROMPT + (
-        f"\nConfirmed recovery target: {subject} is visibly overlaid near the {horizontal}, "
-        f"{vertical}. The first coordinate estimate may be too high, shifted, or too small. "
-        "Locate the actual visible pixels again and return the corrected complete extent."
-    )
-
-
 class QWMDetect:
     @classmethod
     def INPUT_TYPES(cls):
@@ -165,15 +128,18 @@ class QWMDetect:
             "expand": ("INT", {"default": 8, "min": 0, "max": 64}),
             "max_tokens": ("INT", {"default": 512, "min": 64, "max": 2048}),
             "hint": ("STRING", {"default": "", "multiline": True}),
+            "edit_prompt": ("STRING", {"default": "", "multiline": True}),
             "padding_ratio": ("FLOAT", {"default": 0.35, "min": 0, "max": 1, "step": 0.05}),
-        }, "optional": {"clip": ("CLIP",), "manual_mask": ("MASK",)}}
+        }, "optional": {"clip": ("CLIP",), "manual_mask": ("MASK",),
+                        "min_confidence": ("FLOAT", {"default": 0.65, "min": 0, "max": 1})}}
 
     RETURN_TYPES = ("MASK", "STRING", "IMAGE", "STRING")
     RETURN_NAMES = ("watermark_mask", "boxes_json", "preview", "edit_prompt")
     FUNCTION = "detect"
     CATEGORY = "Qwen Watermark"
 
-    def detect(self, image, mode, boxes_json, detection_side, expand, max_tokens, hint, padding_ratio=0.35, clip=None, manual_mask=None):
+    def detect(self, image, mode, boxes_json, detection_side, expand, max_tokens, hint,
+               padding_ratio=0.35, clip=None, manual_mask=None, edit_prompt="", min_confidence=0.65):
         array = to_array(image)
         height, width = array.shape[:2]
         raw = ""
@@ -195,22 +161,19 @@ class QWMDetect:
                 picture.thumbnail((detection_side, detection_side), Image.Resampling.LANCZOS)
                 tensor = to_tensor(np.array(picture).astype(np.float32) / 255)
                 suffix = "\nAdditional watermark description: " + hint if hint.strip() else ""
-                suffix += ("\nAutomatic coordinate hint when applicable: A large translucent Chinese wordmark "
-                            "with a small URL is visibly overlaid across the lower center of the image. "
-                            "Locate its exact full extent, including the URL, and do not place the box above it.")
                 raw_general = _detect_with_clip(clip, tensor, DETECTION_PROMPT + suffix, max_tokens)
                 try:
-                    _, result = parse_boxes(raw_general, width, height, expand=0, padding_ratio=0)
+                    _, parsed = parse_boxes(raw_general, width, height, expand=0, padding_ratio=0)
                 except ValueError as exc:
                     result = merge_detection_results([], width, height)
                     errors = [str(exc)]
                 else:
-                    result = calibrate_large_translucent_boxes(
-                        merge_detection_results([result], width, height), width, height
-                    )
+                    result = coerce_rectangular_overlay_types(merge_detection_results([parsed], width, height))
                     errors = []
+                rejected = [item for item in result["boxes"] if item["confidence"] < min_confidence]
+                result["boxes"] = [item for item in result["boxes"] if item["confidence"] >= min_confidence]
                 boxes_json = json.dumps(result, ensure_ascii=False)
-                raw = json.dumps({"strategy": "single_inference_dual_scan",
+                raw = json.dumps({"strategy": "single_inference_high_recall_geometry_recovery",
                                   "combined": raw_general,
                                   "parse_warnings": errors}, ensure_ascii=False)
             mask, result = parse_boxes(boxes_json, width, height, expand,
@@ -219,6 +182,8 @@ class QWMDetect:
             result["source"] = mode
             if raw:
                 result["detection_passes"] = json.loads(raw)
+                result["rejected_boxes"] = rejected
+                result["status"] = "indeterminate" if errors else "needs_review" if rejected else "detected" if result["boxes"] else "no_overlay_detected"
         picture = Image.fromarray(np.clip(array * 255, 0, 255).astype(np.uint8))
         if mode == "manual_mask":
             preview = array.copy()
@@ -232,7 +197,7 @@ class QWMDetect:
                 draw.text((x0, max(0, y0 - 14)), str(index + 1), fill=(255, 65, 35))
             preview = np.array(picture).astype(np.float32) / 255
         report = json.dumps(result, ensure_ascii=False, indent=2)
-        edit_prompt = build_edit_prompt(result, hint)
+        edit_prompt = build_edit_prompt(result, hint, edit_prompt)
         return {"ui": {"text": [report]},
                 "result": (torch.from_numpy(mask)[None], report, to_tensor(preview), edit_prompt)}
 
@@ -244,41 +209,63 @@ class QWMResidualDetect:
             "image": ("IMAGE",),
             "clip": ("CLIP",),
             "detection_side": ("INT", {"default": 1024, "min": 256, "max": 2048, "step": 32}),
-            "expand": ("INT", {"default": 24, "min": 0, "max": 64}),
+            "expand": ("INT", {"default": 24, "min": 0, "max": 96}),
             "max_tokens": ("INT", {"default": 384, "min": 64, "max": 2048}),
-        }}
+            "edit_prompt": ("STRING", {"default": "", "multiline": True}),
+        }, "optional": {"allowed_mask": ("MASK",),
+                        "enabled": ("BOOLEAN", {"default": True}),
+                        "first_report": ("STRING", {"default": ""}),
+                        "min_confidence": ("FLOAT", {"default": 0.8, "min": 0, "max": 1})}}
 
     RETURN_TYPES = ("MASK", "STRING", "IMAGE", "STRING")
     RETURN_NAMES = ("residual_mask", "boxes_json", "preview", "edit_prompt")
     FUNCTION = "detect"
     CATEGORY = "Qwen Watermark"
 
-    def detect(self, image, clip, detection_side, expand, max_tokens):
+    def detect(self, image, clip, detection_side, expand, max_tokens, edit_prompt="", allowed_mask=None,
+               enabled=True, min_confidence=0.8, first_report=""):
         array = to_array(image)
         height, width = array.shape[:2]
-        picture = Image.fromarray(np.clip(array * 255, 0, 255).astype(np.uint8))
+        scope = np.ones((height, width), np.float32) if allowed_mask is None else allowed_mask[0].detach().cpu().numpy()
+        if scope.shape != (height, width):
+            raise ValueError("复检范围遮罩必须与图片尺寸一致。")
+        first_data = json.loads(first_report) if first_report else {}
+        invalid = (first_data.get("alignment", {}).get("correlation", 1) < 0.85 or bool(first_data.get("alignment", {}).get("warning"))) and (
+                   first_data.get("color", {}).get("context_mae_before", 0) > 0.12)
+        if not enabled or not np.any(scope > 0) or invalid:
+            result = {"coordinate_space": "pixels", "boxes": [], "source": "residual_qwen",
+                      "status": "skipped_invalid_first_pass" if invalid else "skipped" if not enabled else "no_overlay_detected"}
+            report = json.dumps(result, ensure_ascii=False)
+            return {"ui": {"text": [report]}, "result": (torch.zeros((1, height, width)), report, image, edit_prompt)}
+        ys, xs = np.where(scope > 0)
+        x0, y0 = max(0, int(xs.min()) - 64), max(0, int(ys.min()) - 64)
+        x1, y1 = min(width, int(xs.max()) + 65), min(height, int(ys.max()) + 65)
+        inspection_roi = [x0, y0, x1, y1]
+        picture = Image.fromarray(np.clip(array[y0:y1, x0:x1] * 255, 0, 255).astype(np.uint8))
         picture.thumbnail((detection_side, detection_side), Image.Resampling.LANCZOS)
         tensor = to_tensor(np.array(picture).astype(np.float32) / 255)
         raw = _detect_with_clip(clip, tensor, RESIDUAL_PROMPT, max_tokens)
         try:
-            _, parsed = parse_boxes(raw, width, height, expand=0, padding_ratio=0)
+            _, parsed = parse_boxes(raw, x1 - x0, y1 - y0, expand=0, padding_ratio=0)
         except ValueError as exc:
             parsed = {"coordinate_space": "pixels", "image_size": [width, height], "boxes": []}
             warning = str(exc)
         else:
             warning = ""
-        merged = merge_detection_results([parsed], width, height)
-        merged["boxes"] = [item for item in merged["boxes"] if item.get("confidence", 0) >= 0.65]
-        boxes_json = json.dumps(merged, ensure_ascii=False)
-        mask, result = parse_boxes(boxes_json, width, height, expand=expand,
-                                   padding_ratio=0.08, adaptive_padding=True)
+        for item in parsed["boxes"]:
+            for key in ("bbox", "source_bbox"):
+                b = item[key]
+                item[key] = [b[0] + x0, b[1] + y0, b[2] + x0, b[3] + y0]
+        merged = coerce_rectangular_overlay_types(merge_detection_results([parsed], width, height))
+        mask, result = constrain_residuals(merged, scope, expand=expand, min_confidence=min_confidence)
         if result["boxes"]:
             status = "residual_detected"
-        elif warning:
+        elif warning or result["uncertain"] or result["rejected_boxes"]:
             status = "indeterminate"
         else:
             status = "clean"
-        result.update({"source": "residual_qwen", "raw_detection": raw, "status": status})
+        result.update({"source": "residual_qwen", "raw_detection": raw, "status": status,
+                       "inspection_roi": inspection_roi})
         if warning:
             result["parse_warning"] = warning
         preview_image = Image.fromarray(np.clip(array * 255, 0, 255).astype(np.uint8))
@@ -289,7 +276,7 @@ class QWMResidualDetect:
             draw.text((x0, max(0, y0 - 14)), f"R{index + 1}", fill=(255, 178, 0))
         preview = np.array(preview_image).astype(np.float32) / 255
         report = json.dumps(result, ensure_ascii=False, indent=2)
-        prompt = build_edit_prompt(result, "只清理第一次修复后仍可见的残留，不改变已经修复干净的区域。")
+        prompt = build_edit_prompt(result, "只清理第一次修复后仍可见的残留，不改变已经修复干净的区域。", edit_prompt)
         return {"ui": {"text": [report]},
                 "result": (torch.from_numpy(mask)[None], report, to_tensor(preview), prompt)}
 
@@ -415,6 +402,8 @@ class QWMRefineMask:
                       "base_pixels": int(np.count_nonzero(base)),
                       "route_counts": planned_route_counts}
             refined = base
+        if json.loads(boxes_json).get("source") == "residual_qwen":
+            refined = np.minimum(refined, base)
         preview = array.copy()
         selected = refined > 0
         preview[selected] = preview[selected] * 0.55 + np.array([1.0, 0.18, 0.08], dtype=np.float32) * 0.45
@@ -428,15 +417,17 @@ class QWMPrepare:
         return {"required": {"image": ("IMAGE",), "mask": ("MASK",),
                              "context_pixels": ("INT", {"default": 96, "min": 0, "max": 2048}),
                              "max_side": ("INT", {"default": 768, "min": 256, "max": 2048, "step": 32}),
-                             "pre_inpaint": (["none", "telea", "ns"],),
-                             "inpaint_radius": ("INT", {"default": 3, "min": 1, "max": 15})}}
+                             "pre_inpaint": (["auto", "none", "telea", "ns"],),
+                             "inpaint_radius": ("INT", {"default": 3, "min": 1, "max": 15})},
+                "optional": {"edit_prompt": ("STRING", {"default": "", "multiline": True}),
+                             "boxes_json": ("STRING", {"default": "", "multiline": True})}}
 
-    RETURN_TYPES = ("IMAGE", "MASK", "QWM_GEOMETRY", "STRING")
-    RETURN_NAMES = ("reference_crop", "crop_mask", "geometry", "status")
+    RETURN_TYPES = ("IMAGE", "MASK", "QWM_GEOMETRY", "STRING", "STRING")
+    RETURN_NAMES = ("reference_crop", "crop_mask", "geometry", "status", "edit_prompt")
     FUNCTION = "prepare"
     CATEGORY = "Qwen Watermark"
 
-    def prepare(self, image, mask, context_pixels, max_side, pre_inpaint="none", inpaint_radius=3):
+    def prepare(self, image, mask, context_pixels, max_side, pre_inpaint="none", inpaint_radius=3, edit_prompt="", boxes_json=""):
         array = to_array(image)
         if not isinstance(mask, torch.Tensor) or mask.ndim != 3 or mask.shape[0] < 1:
             raise ValueError("MASK 必须是 [batch,height,width] 张量。")
@@ -449,20 +440,50 @@ class QWMPrepare:
                 "message": "自动定位未发现水印或遮挡，后续编辑已跳过。请查看定位坐标；漏检时填写 hint、改用 manual_boxes 或 manual_mask。",
             }, ensure_ascii=False, indent=2)
             blocker = ExecutionBlocker(None)
-            return {"ui": {"text": [status]}, "result": (blocker, blocker, blocker, status)}
+            return {"ui": {"text": [status]}, "result": (blocker, blocker, blocker, status, blocker)}
+        crop, local_mask, geometry = prepare_crop(array, mask_array, context_pixels, max_side)
+        requested_prefill = pre_inpaint
+        if pre_inpaint == "auto":
+            boxes = json.loads(boxes_json).get("boxes", []) if boxes_json else []
+            types = {item.get("overlay_type", "unknown") for item in boxes}
+            pre_inpaint = "none" if types and types <= {"text_logo", "translucent_text_logo"} else "telea"
         prefill_status = "none"
         if pre_inpaint != "none":
             method = cv2.INPAINT_NS if pre_inpaint == "ns" else cv2.INPAINT_TELEA
-            source = np.clip(array * 255, 0, 255).astype(np.uint8)
-            mask_u8 = (mask_array > 0).astype(np.uint8) * 255
+            source = np.clip(np.round(crop * 255), 0, 255).astype(np.uint8)
+            mask_u8 = (local_mask > 0).astype(np.uint8) * 255
             bgr = cv2.cvtColor(source, cv2.COLOR_RGB2BGR)
             cleaned = cv2.inpaint(bgr, mask_u8, inpaint_radius, method)
-            array = cv2.cvtColor(cleaned, cv2.COLOR_BGR2RGB).astype(np.float32) / 255
+            filled = cv2.cvtColor(cleaned, cv2.COLOR_BGR2RGB).astype(np.float32) / 255
+            crop[local_mask > 0] = filled[local_mask > 0]
             prefill_status = pre_inpaint
-        crop, local_mask, geometry = prepare_crop(array, mask_array, context_pixels, max_side)
         geometry["pre_inpaint"] = prefill_status
+        geometry["requested_pre_inpaint"] = requested_prefill
+        _, _, stats, _ = cv2.connectedComponentsWithStats((local_mask > 0).astype(np.uint8), connectivity=8)
+        boxes = []
+        ch, cw = local_mask.shape
+        for x, y, w, h, area in stats[1:]:
+            if area:
+                boxes.append([round(x * 1000 / cw), round(y * 1000 / ch),
+                              round((x + w) * 1000 / cw), round((y + h) * 1000 / ch)])
+        prompt = edit_prompt or build_edit_prompt({"source": "manual_mask", "boxes": []})
+        if prefill_status != "none":
+            generated_prefix = "编辑<image1>。只修复局部填充痕迹"
+            supplements = []
+            if prompt.startswith(generated_prefix):
+                for name in ("周围可见的原场景材质", "补充要求", "用户编辑指令"):
+                    match = re.search(name + r"：(.*?)(?=\n(?:补充要求|用户编辑指令|输出与)|$)", prompt, re.DOTALL)
+                    if match:
+                        supplements.append(name + "：" + match.group(1))
+            else:
+                supplements.append(prompt)
+            prompt = ("编辑<image1>。将粗糙、模糊或拉丝状填充区域恢复为原本的场景，延续紧邻区域可见的材质、颜色、纹理和线条。其他部分保持原样。"
+                      + "\n" + "\n".join(supplements))
+        if len(boxes) > 32:
+            boxes = [[min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes)]]
+        geometry["local_regions_1000"] = boxes
         status = json.dumps({"status": "ready", "geometry": geometry}, ensure_ascii=False, indent=2)
-        return {"ui": {"text": [status]}, "result": (to_tensor(crop), torch.from_numpy(local_mask)[None], geometry, status)}
+        return {"ui": {"text": [status]}, "result": (to_tensor(crop), torch.from_numpy(local_mask)[None], geometry, status, prompt)}
 
 
 class QWMComposite:
@@ -471,24 +492,99 @@ class QWMComposite:
         return {"required": {"original": ("IMAGE",), "edited_crop": ("IMAGE",), "mask": ("MASK",),
                              "geometry": ("QWM_GEOMETRY",),
                              "feather": ("INT", {"default": 6, "min": 0, "max": 64}),
-                             "align": ("BOOLEAN", {"default": True})}}
+                             "align": ("BOOLEAN", {"default": True})},
+                "optional": {"color_match": ("BOOLEAN", {"default": True})}}
 
     RETURN_TYPES = ("IMAGE", "IMAGE", "STRING")
     RETURN_NAMES = ("restored_image", "comparison", "report")
     FUNCTION = "paste"
     CATEGORY = "Qwen Watermark"
 
-    def paste(self, original, edited_crop, mask, geometry, feather, align):
+    def paste(self, original, edited_crop, mask, geometry, feather, align, color_match=True):
         array = to_array(original)
-        restored, report = composite(array, to_array(edited_crop), mask[0].detach().cpu().numpy(), geometry, feather, align)
+        restored, report = composite(array, to_array(edited_crop), mask[0].detach().cpu().numpy(), geometry, feather, align, color_match)
         report_json = json.dumps(report, ensure_ascii=False, indent=2)
         comparison = np.concatenate((array, restored), axis=1)
         return {"ui": {"text": [report_json]}, "result": (to_tensor(restored), to_tensor(comparison), report_json)}
 
 
-NODE_CLASS_MAPPINGS = {"QWMDetect": QWMDetect, "QWMResidualDetect": QWMResidualDetect,
+class QWMFinal:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {"original": ("IMAGE",), "initial_mask": ("MASK",), "detection_report": ("STRING",)},
+                "optional": {"first_pass": ("IMAGE", {"lazy": True}), "first_report": ("STRING", {"lazy": True}),
+                             "residual_report": ("STRING", {"lazy": True}), "second_pass": ("IMAGE", {"lazy": True}),
+                             "second_report": ("STRING", {"lazy": True}), "residual_mask": ("MASK", {"lazy": True})}}
+
+    RETURN_TYPES = ("IMAGE", "IMAGE", "STRING")
+    RETURN_NAMES = ("final_image", "comparison", "quality_report")
+    FUNCTION = "select"
+    CATEGORY = "Qwen Watermark"
+
+    def check_lazy_status(self, original, initial_mask, detection_report, first_pass=None, first_report=None,
+                          residual_report=None, second_pass=None, second_report=None, residual_mask=None):
+        if not torch.any(initial_mask > 0):
+            return []
+        pending = [name for name, value in (("first_pass", first_pass), ("first_report", first_report),
+                                            ("residual_report", residual_report)) if value is None]
+        if pending:
+            return pending
+        if json.loads(residual_report).get("status") == "residual_detected":
+            return [name for name, value in (("second_pass", second_pass), ("second_report", second_report),
+                                             ("residual_mask", residual_mask)) if value is None]
+        return []
+
+    def select(self, original, initial_mask, detection_report, first_pass=None, first_report=None,
+               residual_report=None, second_pass=None, second_report=None, residual_mask=None):
+        array = to_array(original)
+        detection = json.loads(detection_report)
+        selected = initial_mask[0].detach().cpu().numpy()
+        if not np.any(selected > 0):
+            final = array.copy()
+            status = detection.get("status", "no_overlay_detected")
+            report = {"selected_pass": 0, "status": status, "needs_review": status in ("indeterminate", "needs_review")}
+            final_mask = selected
+        else:
+            first = to_array(first_pass)
+            first_data, residual = json.loads(first_report), json.loads(residual_report)
+            second = to_array(second_pass) if second_pass is not None else None
+            second_data = json.loads(second_report) if second_report is not None else {}
+            second_mask = residual_mask[0].detach().cpu().numpy() if residual_mask is not None else np.zeros_like(selected)
+            final, final_mask, report = choose_final(first, second, selected, second_mask, second_data)
+            report["residual_status"] = residual.get("status")
+            if first_data.get("alignment", {}).get("warning"):
+                report["reasons"].append("first_pass_alignment_uncertain")
+            if first_data.get("boundary_jump_excess_p90", 0) > 0.04:
+                report["reasons"].append("boundary_discontinuity")
+            if first_data.get("color", {}).get("context_mae_after", 0) > 0.04:
+                report["reasons"].append("context_color_uncertain")
+            if detection.get("status") in ("indeterminate", "needs_review"):
+                report["reasons"].append("detection_uncertain")
+            if residual.get("status") != "clean":
+                report["reasons"].append("residual_unverified")
+            report["needs_review"] = bool(report["reasons"])
+            report["status"] = "needs_review" if report["needs_review"] else "completed_clean_first_pass"
+            report["first_pass_quality"] = first_data
+            if second_data:
+                report["second_pass_quality"] = second_data
+            if ((first_data.get("alignment", {}).get("correlation", 1) < 0.85 or bool(first_data.get("alignment", {}).get("warning"))) and
+                    first_data.get("color", {}).get("context_mae_before", 0) > 0.12):
+                final, final_mask = array.copy(), np.zeros_like(selected)
+                report.update(selected_pass=0, second_pass_accepted=False, status="rejected_first_pass",
+                              needs_review=True, reasons=["first_pass_context_regression"])
+        outside = final_mask <= 0
+        difference = float(np.max(np.abs(final[outside] - array[outside]))) if np.any(outside) else 0.0
+        report.update(outside_mask_max_difference=difference, preserved_fraction=float(np.mean(outside)), version="1.3.0")
+        if difference > 0:
+            raise ValueError("最终结果改变了修复范围外像素，请检查工作流连接。")
+        report_json = json.dumps(report, ensure_ascii=False, indent=2)
+        return {"ui": {"text": [report_json]},
+                "result": (to_tensor(final), to_tensor(np.concatenate((array, final), axis=1)), report_json)}
+
+
+NODE_CLASS_MAPPINGS = {"QWMDetect": QWMDetect, "QWMResidualDetect": QWMResidualDetect, "QWMFinal": QWMFinal,
                        "QWMRefineMask": QWMRefineMask, "QWMPrepare": QWMPrepare,
                        "QWMComposite": QWMComposite}
-NODE_DISPLAY_NAME_MAPPINGS = {"QWMDetect": "Qwen 水印自动定位 / 手动选区", "QWMRefineMask": "SAM 不规则轮廓细化",
+NODE_DISPLAY_NAME_MAPPINGS = {"QWMFinal": "去水印最终结果 / 质量检查", "QWMDetect": "Qwen 水印自动定位 / 手动选区", "QWMRefineMask": "SAM 不规则轮廓细化",
                               "QWMResidualDetect": "Qwen 水印残留复检", "QWMPrepare": "水印局部裁剪（保存坐标）",
                               "QWMComposite": "水印对齐回贴（保护原图）"}

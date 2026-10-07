@@ -8,7 +8,7 @@ Custom nodes used by the Qwen Image 2.1 watermark-removal workflow.
 - `QWMResidualDetect`: post-edit residual check for watermark fragments, translucent ghosts, and seams.
 - `QWMRefineMask`: SAM contour refinement and adaptive edge/shadow expansion.
 - `QWMPrepare`: local crop, padding, and optional OpenCV pre-inpainting.
-- `QWMComposite`: alignment, inward feathering, and protected paste-back.
+- `QWMComposite`: alignment, validated context color matching, exterior-only boundary correction and protected paste-back.
 
 ## Installation
 
@@ -21,3 +21,7 @@ python -m pip install -r ComfyUI/custom_nodes/ComfyUI-Qwen-Watermark/requirement
 Restart ComfyUI after installation. The workflow also needs current ComfyUI core Qwen Image 2.1 nodes and the model files listed in the release package README.
 
 `manual_mask` does not invoke SAM. It applies the node's base and adaptive dilation directly to the painted selection so borders, translucent edges, and shadows are included.
+
+- `QWMFinal`: lazy final selection, second-pass regression rejection, unchanged output for empty masks and explicit review/failure states.
+
+Version 1.3.0. Restart ComfyUI and reimport the matching workflow after upgrading. `QWMPrepare` now appends a fifth output carrying an edit prompt adapted to whether the crop was prefilled; the first four outputs retain their positions.

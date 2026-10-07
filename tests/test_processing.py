@@ -33,6 +33,16 @@ def test_detector_preserves_tight_source_box_when_mask_is_padded():
     assert reparsed["boxes"][0]["source_bbox"] == [100, 200, 300, 400]
 
 
+def test_wide_sticker_like_patch_is_routed_to_rectangular_box_inpaint():
+    result = {"boxes": [{"label": "printed pattern patch", "bbox": [100, 200, 500, 340],
+                          "overlay_type": "irregular_sticker", "confidence": 0.9}]}
+    corrected = processing.coerce_rectangular_overlay_types(result)
+    item = corrected["boxes"][0]
+    assert item["overlay_type"] == "rectangle"
+    assert item["mask_method"] == "box"
+    assert item["type_correction"] == "wide_flat_patch"
+
+
 def test_sam_refinement_recovers_contour_outside_detection_box():
     candidate = np.zeros((320, 320), np.uint8)
     candidate[110:190, 130:222] = 1
@@ -114,6 +124,26 @@ def test_composite_never_changes_unselected_pixels():
     np.testing.assert_array_equal(result[mask == 0], image[mask == 0])
     assert report["outside_mask_max_difference"] == 0
     assert np.mean(np.abs(result[mask > 0] - image[mask > 0])) > 0.1
+
+
+def test_composite_feather_does_not_reintroduce_overlay_at_mask_edge():
+    image = np.zeros((96, 128, 3), np.float32)
+    image[:] = [0.12, 0.32, 0.52]
+    # Simulate a bright watermark that reaches the right edge of the selected
+    # region, which is where inward feathering used to leak the source back in.
+    image[32:64, 48:80] = 1.0
+    mask = np.zeros(image.shape[:2], np.float32)
+    mask[30:66, 46:82] = 1
+    crop, _, geometry = processing.prepare_crop(image, mask, context_pixels=12, max_side=256)
+    edited = np.zeros_like(crop)
+    edited[:] = [0.12, 0.32, 0.52]
+    result, report = processing.composite(image, edited, mask, geometry, feather=6, align=False)
+    # The selected edge should be clean even though the source overlay touches
+    # the interior; unselected pixels must remain byte-for-byte unchanged.
+    assert float(np.max(result[mask > 0])) < 0.95
+    np.testing.assert_array_equal(result[mask == 0], image[mask == 0])
+    assert report["edge_blend"] == "exterior_color_field"
+    assert report["source_pixels_mixed_inside_mask"] == 0
 
 
 def test_alignment_corrects_small_shift_using_background():
@@ -228,7 +258,7 @@ def test_auto_padding_is_type_aware():
     ]})
     _, parsed = processing.parse_boxes(text, 1000, 1000, expand=0, padding_ratio=0.25,
                                        adaptive_padding=True)
-    assert parsed["boxes"][0]["bbox"] == [84, 92, 316, 208]
+    assert parsed["boxes"][0]["bbox"] == [76, 88, 324, 212]
     assert parsed["boxes"][1]["bbox"] == [450, 50, 750, 350]
 
 
@@ -238,7 +268,7 @@ def test_translucent_logo_gets_extra_room_for_faint_text_and_url():
     ]})
     _, parsed = processing.parse_boxes(text, 1000, 1000, expand=0, padding_ratio=0.50,
                                        adaptive_padding=True)
-    assert parsed["boxes"][0]["bbox"] == [30, 365, 370, 535]
+    assert parsed["boxes"][0]["bbox"] == [0, 350, 400, 550]
 
 
 def test_dynamic_prompt_includes_detected_overlay_routes():
@@ -252,16 +282,16 @@ def test_dynamic_prompt_includes_detected_overlay_routes():
     assert "不规则对象" in prompt
 
 
-def test_large_central_translucent_logo_is_calibrated_downward():
-    result = {"boxes": [{"bbox": [162, 281, 288, 334], "source_bbox": [162, 281, 288, 334],
-                          "overlay_type": "translucent_text_logo", "confidence": 0.98}]}
-    calibrated = processing.calibrate_large_translucent_boxes(result, 500, 747)
-    assert calibrated["boxes"][0]["source_bbox"] == [162, 341, 288, 394]
-    assert calibrated["boxes"][0]["coordinate_calibration"]["shift_px"] == 60
+def test_edit_prompt_accepts_user_instruction_without_dropping_safety_rules():
+    prompt = processing.build_edit_prompt(
+        {"boxes": [{"overlay_type": "text_logo"}]},
+        edit_prompt="保留人物脸部和衣服纹理，只修复右下角。",
+    )
+    assert "完整移除文字水印" in prompt
+    assert "用户编辑指令：保留人物脸部和衣服纹理，只修复右下角。" in prompt
 
 
-def test_small_or_edge_translucent_logo_is_not_calibrated():
-    result = {"boxes": [{"bbox": [20, 80, 90, 120], "source_bbox": [20, 80, 90, 120],
-                          "overlay_type": "translucent_text_logo", "confidence": 0.98}]}
-    calibrated = processing.calibrate_large_translucent_boxes(result, 500, 747)
-    assert "coordinate_calibration" not in calibrated["boxes"][0]
+def test_manual_selection_prompt_explicitly_removes_full_overlay_halo():
+    prompt = processing.build_edit_prompt({"source": "manual_mask", "boxes": []})
+    assert "手动选区内全部属于需要移除的后期叠加物" in prompt
+    assert "半透明边缘" in prompt

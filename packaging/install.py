@@ -1,4 +1,7 @@
 import argparse
+from datetime import datetime
+import hashlib
+import json
 from pathlib import Path
 import shutil
 import subprocess
@@ -40,6 +43,17 @@ def main():
     source = package_root / "custom_nodes" / PLUGIN
     target = root / "custom_nodes" / PLUGIN
     if not args.check_only:
+        manifest_path = package_root / "manifest.json"
+        if manifest_path.is_file():
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            for name, expected in manifest["files"].items():
+                path = (package_root / name).resolve()
+                if not path.is_relative_to(package_root.resolve()) or not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+                    raise RuntimeError(f"分享包文件校验失败：{name}")
+        if target.is_dir():
+            backup = root / ".qwm-backups" / datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+            shutil.copytree(target, backup, ignore=shutil.ignore_patterns("__pycache__", ".git"))
+            print(f"旧节点已备份：{backup}")
         shutil.copytree(source, target, dirs_exist_ok=True)
         if not args.skip_deps:
             python = find_python(root)
@@ -64,4 +78,6 @@ def main():
 
 
 if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
     main()

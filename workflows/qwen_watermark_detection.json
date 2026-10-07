@@ -1,8 +1,8 @@
 {
-  "id": "63402bdf-32f2-4c90-ba51-aa17d1d7bc05",
+  "id": "f0accc4d-1c7d-4136-bdc9-f0d199767e7e",
   "revision": 0,
   "last_node_id": 23,
-  "last_link_id": 6,
+  "last_link_id": 7,
   "nodes": [
     {
       "id": 1,
@@ -40,7 +40,9 @@
         {
           "name": "MASK",
           "type": "MASK",
-          "links": []
+          "links": [
+            3
+          ]
         }
       ],
       "properties": {
@@ -140,11 +142,6 @@
           "link": 1
         },
         {
-          "name": "clip",
-          "type": "CLIP",
-          "link": 2
-        },
-        {
           "name": "mode",
           "type": "COMBO",
           "widget": {
@@ -193,10 +190,36 @@
           "link": null
         },
         {
+          "name": "edit_prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "edit_prompt"
+          },
+          "link": null
+        },
+        {
           "name": "padding_ratio",
           "type": "FLOAT",
           "widget": {
             "name": "padding_ratio"
+          },
+          "link": null
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 2
+        },
+        {
+          "name": "manual_mask",
+          "type": "MASK",
+          "link": 3
+        },
+        {
+          "name": "min_confidence",
+          "type": "FLOAT",
+          "widget": {
+            "name": "min_confidence"
           },
           "link": null
         }
@@ -206,21 +229,21 @@
           "name": "watermark_mask",
           "type": "MASK",
           "links": [
-            4
+            5
           ]
         },
         {
           "name": "boxes_json",
           "type": "STRING",
           "links": [
-            6
+            7
           ]
         },
         {
           "name": "preview",
           "type": "IMAGE",
           "links": [
-            3
+            4
           ]
         },
         {
@@ -236,19 +259,23 @@
         "auto_qwen",
         "{\"coordinate_space\":\"pixels\",\"boxes\":[]}",
         1024,
-        16,
+        20,
         512,
         "",
-        0.35
+        "",
+        0.35,
+        0.65
       ],
       "widgets_values_named": {
         "mode": "auto_qwen",
         "boxes_json": "{\"coordinate_space\":\"pixels\",\"boxes\":[]}",
         "detection_side": 1024,
-        "expand": 16,
+        "expand": 20,
         "max_tokens": 512,
         "hint": "",
-        "padding_ratio": 0.35
+        "edit_prompt": "",
+        "padding_ratio": 0.35,
+        "min_confidence": 0.65
       }
     },
     {
@@ -270,7 +297,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 3
+          "link": 4
         },
         {
           "name": "filename_prefix",
@@ -317,7 +344,7 @@
         {
           "name": "mask",
           "type": "MASK",
-          "link": 4
+          "link": 5
         }
       ],
       "outputs": [
@@ -325,7 +352,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            5
+            6
           ]
         }
       ],
@@ -354,7 +381,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 5
+          "link": 6
         }
       ],
       "outputs": [
@@ -389,7 +416,7 @@
         {
           "name": "source",
           "type": "STRING",
-          "link": 6
+          "link": 7
         }
       ],
       "outputs": [
@@ -420,11 +447,19 @@
       2,
       0,
       3,
-      1,
+      9,
       "CLIP"
     ],
     [
       3,
+      1,
+      1,
+      3,
+      10,
+      "MASK"
+    ],
+    [
+      4,
       3,
       2,
       17,
@@ -432,7 +467,7 @@
       "IMAGE"
     ],
     [
-      4,
+      5,
       3,
       0,
       19,
@@ -440,7 +475,7 @@
       "MASK"
     ],
     [
-      5,
+      6,
       19,
       0,
       20,
@@ -448,7 +483,7 @@
       "IMAGE"
     ],
     [
-      6,
+      7,
       3,
       1,
       23,
@@ -465,7 +500,8 @@
         20,
         30
       ]
-    }
+    },
+    "qwm_version": "1.3.0"
   },
   "version": 0.4
 }

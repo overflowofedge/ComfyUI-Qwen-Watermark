@@ -42,9 +42,12 @@ def test_full_workflow_uses_qwen_native_edit_latent_and_irregular_defaults():
     assert graph["4"]["inputs"]["method"] == "auto"
     assert graph["4"]["inputs"]["dilation"] == 12
     assert graph["4"]["inputs"]["adaptive_dilation"] is True
-    assert graph["5"]["inputs"]["pre_inpaint"] == "telea"
+    assert graph["3"]["inputs"]["manual_mask"] == ["1", 1]
+    assert graph["3"]["inputs"]["edit_prompt"] == ""
+    assert graph["5"]["inputs"]["pre_inpaint"] == "auto"
     assert graph["5"]["inputs"]["inpaint_radius"] == 5
-    assert graph["10"]["inputs"]["prompt"] == ["3", 3]
+    assert graph["10"]["inputs"]["prompt"] == ["5", 4]
+    assert graph["5"]["inputs"]["edit_prompt"] == ["3", 3]
 
 
 def test_full_workflow_rechecks_residuals_and_runs_second_pass_when_needed():
@@ -53,9 +56,14 @@ def test_full_workflow_rechecks_residuals_and_runs_second_pass_when_needed():
     assert graph["26"]["inputs"]["image"] == ["14", 0]
     assert graph["27"]["inputs"]["method"] == "auto"
     assert graph["28"]["inputs"]["image"] == ["14", 0]
-    assert graph["29"]["inputs"]["prompt"] == ["26", 3]
+    assert graph["29"]["inputs"]["prompt"] == ["28", 4]
+    assert graph["28"]["inputs"]["edit_prompt"] == ["26", 3]
     assert graph["32"]["inputs"]["original"] == ["14", 0]
-    assert graph["33"]["inputs"]["images"] == ["32", 0]
+    assert graph["33"]["inputs"]["images"] == ["37", 0]
+    assert graph["37"]["class_type"] == "QWMFinal"
+    assert graph["26"]["inputs"]["allowed_mask"] == ["4", 0]
+    assert graph["37"]["inputs"]["residual_mask"] == ["27", 0]
+    assert graph["26"]["inputs"]["edit_prompt"] == ""
 
 
 def test_ui_workflow_links_are_bidirectional():

@@ -1,8 +1,8 @@
 {
-  "id": "e47a0d14-99d2-4db1-b54b-3040da2a38d2",
+  "id": "0806016a-bd69-4013-81cf-073330ba1195",
   "revision": 0,
-  "last_node_id": 36,
-  "last_link_id": 59,
+  "last_node_id": 38,
+  "last_link_id": 76,
   "nodes": [
     {
       "id": 1,
@@ -35,15 +35,18 @@
           "type": "IMAGE",
           "links": [
             1,
-            3,
-            6,
-            20
+            4,
+            7,
+            23,
+            63
           ]
         },
         {
           "name": "MASK",
           "type": "MASK",
-          "links": []
+          "links": [
+            3
+          ]
         }
       ],
       "properties": {
@@ -104,9 +107,9 @@
           "type": "CLIP",
           "links": [
             2,
-            10,
-            36,
-            42
+            13,
+            39,
+            49
           ]
         }
       ],
@@ -144,11 +147,6 @@
           "name": "image",
           "type": "IMAGE",
           "link": 1
-        },
-        {
-          "name": "clip",
-          "type": "CLIP",
-          "link": 2
         },
         {
           "name": "mode",
@@ -199,10 +197,36 @@
           "link": null
         },
         {
+          "name": "edit_prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "edit_prompt"
+          },
+          "link": null
+        },
+        {
           "name": "padding_ratio",
           "type": "FLOAT",
           "widget": {
             "name": "padding_ratio"
+          },
+          "link": null
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 2
+        },
+        {
+          "name": "manual_mask",
+          "type": "MASK",
+          "link": 3
+        },
+        {
+          "name": "min_confidence",
+          "type": "FLOAT",
+          "widget": {
+            "name": "min_confidence"
           },
           "link": null
         }
@@ -212,29 +236,31 @@
           "name": "watermark_mask",
           "type": "MASK",
           "links": [
-            4
+            5
           ]
         },
         {
           "name": "boxes_json",
           "type": "STRING",
           "links": [
-            5,
-            32
+            6,
+            10,
+            35,
+            65
           ]
         },
         {
           "name": "preview",
           "type": "IMAGE",
           "links": [
-            26
+            29
           ]
         },
         {
           "name": "edit_prompt",
           "type": "STRING",
           "links": [
-            13
+            9
           ]
         }
       ],
@@ -245,19 +271,23 @@
         "auto_qwen",
         "{\"coordinate_space\":\"pixels\",\"boxes\":[]}",
         1024,
-        16,
+        20,
         512,
         "",
-        0.35
+        "",
+        0.35,
+        0.65
       ],
       "widgets_values_named": {
         "mode": "auto_qwen",
         "boxes_json": "{\"coordinate_space\":\"pixels\",\"boxes\":[]}",
         "detection_side": 1024,
-        "expand": 16,
+        "expand": 20,
         "max_tokens": 512,
         "hint": "",
-        "padding_ratio": 0.35
+        "edit_prompt": "",
+        "padding_ratio": 0.35,
+        "min_confidence": 0.65
       }
     },
     {
@@ -279,17 +309,17 @@
         {
           "name": "image",
           "type": "IMAGE",
-          "link": 3
+          "link": 4
         },
         {
           "name": "mask",
           "type": "MASK",
-          "link": 4
+          "link": 5
         },
         {
           "name": "boxes_json",
           "type": "STRING",
-          "link": 5
+          "link": 6
         },
         {
           "name": "method",
@@ -337,9 +367,11 @@
           "name": "refined_mask",
           "type": "MASK",
           "links": [
-            7,
-            22,
-            28
+            8,
+            25,
+            31,
+            40,
+            64
           ]
         },
         {
@@ -351,7 +383,7 @@
           "name": "status",
           "type": "STRING",
           "links": [
-            34
+            37
           ]
         }
       ],
@@ -393,12 +425,12 @@
         {
           "name": "image",
           "type": "IMAGE",
-          "link": 6
+          "link": 7
         },
         {
           "name": "mask",
           "type": "MASK",
-          "link": 7
+          "link": 8
         },
         {
           "name": "context_pixels",
@@ -431,6 +463,16 @@
             "name": "inpaint_radius"
           },
           "link": null
+        },
+        {
+          "name": "edit_prompt",
+          "type": "STRING",
+          "link": 9
+        },
+        {
+          "name": "boxes_json",
+          "type": "STRING",
+          "link": 10
         }
       ],
       "outputs": [
@@ -438,8 +480,8 @@
           "name": "reference_crop",
           "type": "IMAGE",
           "links": [
-            12,
-            27
+            16,
+            30
           ]
         },
         {
@@ -451,14 +493,21 @@
           "name": "geometry",
           "type": "QWM_GEOMETRY",
           "links": [
-            23
+            26
           ]
         },
         {
           "name": "status",
           "type": "STRING",
           "links": [
-            33
+            36
+          ]
+        },
+        {
+          "name": "edit_prompt",
+          "type": "STRING",
+          "links": [
+            14
           ]
         }
       ],
@@ -468,13 +517,15 @@
       "widgets_values": [
         96,
         768,
-        "telea",
-        5
+        "auto",
+        5,
+        null,
+        null
       ],
       "widgets_values_named": {
         "context_pixels": 96,
         "max_side": 768,
-        "pre_inpaint": "telea",
+        "pre_inpaint": "auto",
         "inpaint_radius": 5
       }
     },
@@ -516,7 +567,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            8
+            11
           ]
         }
       ],
@@ -551,7 +602,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 8
+          "link": 11
         },
         {
           "name": "attention",
@@ -567,7 +618,7 @@
           "name": "model",
           "type": "MODEL",
           "links": [
-            9
+            12
           ]
         }
       ],
@@ -600,7 +651,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 9
+          "link": 12
         },
         {
           "name": "device",
@@ -624,8 +675,8 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            14,
-            46
+            17,
+            53
           ]
         }
       ],
@@ -671,10 +722,10 @@
           "name": "VAE",
           "type": "VAE",
           "links": [
-            11,
-            19,
-            43,
-            51
+            15,
+            22,
+            51,
+            58
           ]
         }
       ],
@@ -707,22 +758,12 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 10
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": 11
-        },
-        {
-          "name": "images.image_1",
-          "type": "IMAGE",
-          "link": 12
+          "link": 13
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "link": 13
+          "link": 14
         },
         {
           "name": "negative_prompt",
@@ -739,6 +780,16 @@
             "name": "resolution"
           },
           "link": null
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 15
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "link": 16
         }
       ],
       "outputs": [
@@ -746,21 +797,21 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            15
+            18
           ]
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            16
+            19
           ]
         },
         {
           "name": "latent",
           "type": "LATENT",
           "links": [
-            17
+            20
           ]
         }
       ],
@@ -796,21 +847,6 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 14
-        },
-        {
-          "name": "positive",
-          "type": "CONDITIONING",
-          "link": 15
-        },
-        {
-          "name": "negative",
-          "type": "CONDITIONING",
-          "link": 16
-        },
-        {
-          "name": "latent_image",
-          "type": "LATENT",
           "link": 17
         },
         {
@@ -854,6 +890,21 @@
           "link": null
         },
         {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 18
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 19
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 20
+        },
+        {
           "name": "denoise",
           "type": "FLOAT",
           "widget": {
@@ -867,7 +918,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            18
+            21
           ]
         }
       ],
@@ -912,12 +963,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 18
+          "link": 21
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 19
+          "link": 22
         }
       ],
       "outputs": [
@@ -925,8 +976,8 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            21,
-            30
+            24,
+            33
           ]
         }
       ],
@@ -939,7 +990,7 @@
     {
       "id": 14,
       "type": "QWMComposite",
-      "title": "06 校验对齐并贴回",
+      "title": "06 对齐 / 保色贴回",
       "pos": [
         2580,
         100
@@ -955,22 +1006,22 @@
         {
           "name": "original",
           "type": "IMAGE",
-          "link": 20
+          "link": 23
         },
         {
           "name": "edited_crop",
           "type": "IMAGE",
-          "link": 21
+          "link": 24
         },
         {
           "name": "mask",
           "type": "MASK",
-          "link": 22
+          "link": 25
         },
         {
           "name": "geometry",
           "type": "QWM_GEOMETRY",
-          "link": 23
+          "link": 26
         },
         {
           "name": "feather",
@@ -987,6 +1038,14 @@
             "name": "align"
           },
           "link": null
+        },
+        {
+          "name": "color_match",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "color_match"
+          },
+          "link": null
         }
       ],
       "outputs": [
@@ -994,25 +1053,28 @@
           "name": "restored_image",
           "type": "IMAGE",
           "links": [
-            24,
-            35,
-            37,
-            40,
-            52
+            27,
+            38,
+            42,
+            45,
+            59,
+            66
           ]
         },
         {
           "name": "comparison",
           "type": "IMAGE",
           "links": [
-            25
+            28
           ]
         },
         {
           "name": "report",
           "type": "STRING",
           "links": [
-            31
+            34,
+            41,
+            67
           ]
         }
       ],
@@ -1021,17 +1083,19 @@
       },
       "widgets_values": [
         6,
+        true,
         true
       ],
       "widgets_values_named": {
         "feather": 6,
-        "align": true
+        "align": true,
+        "color_match": true
       }
     },
     {
       "id": 15,
       "type": "SaveImage",
-      "title": "保存修复结果",
+      "title": "一采候选（供检查）",
       "pos": [
         3000,
         100
@@ -1047,7 +1111,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 24
+          "link": 27
         },
         {
           "name": "filename_prefix",
@@ -1094,7 +1158,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 25
+          "link": 28
         },
         {
           "name": "filename_prefix",
@@ -1141,7 +1205,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 26
+          "link": 29
         },
         {
           "name": "filename_prefix",
@@ -1188,7 +1252,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 27
+          "link": 30
         }
       ],
       "outputs": [
@@ -1223,7 +1287,7 @@
         {
           "name": "mask",
           "type": "MASK",
-          "link": 28
+          "link": 31
         }
       ],
       "outputs": [
@@ -1231,7 +1295,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            29
+            32
           ]
         }
       ],
@@ -1260,7 +1324,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 29
+          "link": 32
         }
       ],
       "outputs": [
@@ -1295,7 +1359,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 30
+          "link": 33
         },
         {
           "name": "filename_prefix",
@@ -1342,7 +1406,7 @@
         {
           "name": "source",
           "type": "STRING",
-          "link": 31
+          "link": 34
         }
       ],
       "outputs": [
@@ -1377,7 +1441,7 @@
         {
           "name": "source",
           "type": "STRING",
-          "link": 32
+          "link": 35
         }
       ],
       "outputs": [
@@ -1412,7 +1476,7 @@
         {
           "name": "source",
           "type": "STRING",
-          "link": 33
+          "link": 36
         }
       ],
       "outputs": [
@@ -1447,7 +1511,7 @@
         {
           "name": "source",
           "type": "STRING",
-          "link": 34
+          "link": 37
         }
       ],
       "outputs": [
@@ -1482,12 +1546,12 @@
         {
           "name": "image",
           "type": "IMAGE",
-          "link": 35
+          "link": 38
         },
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 36
+          "link": 39
         },
         {
           "name": "detection_side",
@@ -1512,6 +1576,40 @@
             "name": "max_tokens"
           },
           "link": null
+        },
+        {
+          "name": "edit_prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "edit_prompt"
+          },
+          "link": null
+        },
+        {
+          "name": "allowed_mask",
+          "type": "MASK",
+          "link": 40
+        },
+        {
+          "name": "enabled",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled"
+          },
+          "link": null
+        },
+        {
+          "name": "first_report",
+          "type": "STRING",
+          "link": 41
+        },
+        {
+          "name": "min_confidence",
+          "type": "FLOAT",
+          "widget": {
+            "name": "min_confidence"
+          },
+          "link": null
         }
       ],
       "outputs": [
@@ -1519,29 +1617,31 @@
           "name": "residual_mask",
           "type": "MASK",
           "links": [
-            38
+            43
           ]
         },
         {
           "name": "boxes_json",
           "type": "STRING",
           "links": [
-            39,
-            58
+            44,
+            48,
+            68,
+            75
           ]
         },
         {
           "name": "preview",
           "type": "IMAGE",
           "links": [
-            59
+            76
           ]
         },
         {
           "name": "edit_prompt",
           "type": "STRING",
           "links": [
-            45
+            47
           ]
         }
       ],
@@ -1551,12 +1651,19 @@
       "widgets_values": [
         1024,
         24,
-        384
+        384,
+        "",
+        true,
+        null,
+        0.8
       ],
       "widgets_values_named": {
         "detection_side": 1024,
         "expand": 24,
-        "max_tokens": 384
+        "max_tokens": 384,
+        "edit_prompt": "",
+        "enabled": true,
+        "min_confidence": 0.8
       }
     },
     {
@@ -1578,17 +1685,17 @@
         {
           "name": "image",
           "type": "IMAGE",
-          "link": 37
+          "link": 42
         },
         {
           "name": "mask",
           "type": "MASK",
-          "link": 38
+          "link": 43
         },
         {
           "name": "boxes_json",
           "type": "STRING",
-          "link": 39
+          "link": 44
         },
         {
           "name": "method",
@@ -1636,8 +1743,9 @@
           "name": "refined_mask",
           "type": "MASK",
           "links": [
-            41,
-            54
+            46,
+            61,
+            71
           ]
         },
         {
@@ -1689,12 +1797,12 @@
         {
           "name": "image",
           "type": "IMAGE",
-          "link": 40
+          "link": 45
         },
         {
           "name": "mask",
           "type": "MASK",
-          "link": 41
+          "link": 46
         },
         {
           "name": "context_pixels",
@@ -1727,6 +1835,16 @@
             "name": "inpaint_radius"
           },
           "link": null
+        },
+        {
+          "name": "edit_prompt",
+          "type": "STRING",
+          "link": 47
+        },
+        {
+          "name": "boxes_json",
+          "type": "STRING",
+          "link": 48
         }
       ],
       "outputs": [
@@ -1734,7 +1852,7 @@
           "name": "reference_crop",
           "type": "IMAGE",
           "links": [
-            44
+            52
           ]
         },
         {
@@ -1746,13 +1864,20 @@
           "name": "geometry",
           "type": "QWM_GEOMETRY",
           "links": [
-            55
+            62
           ]
         },
         {
           "name": "status",
           "type": "STRING",
           "links": []
+        },
+        {
+          "name": "edit_prompt",
+          "type": "STRING",
+          "links": [
+            50
+          ]
         }
       ],
       "properties": {
@@ -1761,13 +1886,15 @@
       "widgets_values": [
         128,
         768,
-        "telea",
-        3
+        "auto",
+        3,
+        null,
+        null
       ],
       "widgets_values_named": {
         "context_pixels": 128,
         "max_side": 768,
-        "pre_inpaint": "telea",
+        "pre_inpaint": "auto",
         "inpaint_radius": 3
       }
     },
@@ -1790,22 +1917,12 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 42
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": 43
-        },
-        {
-          "name": "images.image_1",
-          "type": "IMAGE",
-          "link": 44
+          "link": 49
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "link": 45
+          "link": 50
         },
         {
           "name": "negative_prompt",
@@ -1822,6 +1939,16 @@
             "name": "resolution"
           },
           "link": null
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 51
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "link": 52
         }
       ],
       "outputs": [
@@ -1829,21 +1956,21 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            47
+            54
           ]
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            48
+            55
           ]
         },
         {
           "name": "latent",
           "type": "LATENT",
           "links": [
-            49
+            56
           ]
         }
       ],
@@ -1879,22 +2006,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 46
-        },
-        {
-          "name": "positive",
-          "type": "CONDITIONING",
-          "link": 47
-        },
-        {
-          "name": "negative",
-          "type": "CONDITIONING",
-          "link": 48
-        },
-        {
-          "name": "latent_image",
-          "type": "LATENT",
-          "link": 49
+          "link": 53
         },
         {
           "name": "seed",
@@ -1937,6 +2049,21 @@
           "link": null
         },
         {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 54
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 55
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 56
+        },
+        {
           "name": "denoise",
           "type": "FLOAT",
           "widget": {
@@ -1950,7 +2077,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            50
+            57
           ]
         }
       ],
@@ -1995,12 +2122,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 50
+          "link": 57
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 51
+          "link": 58
         }
       ],
       "outputs": [
@@ -2008,7 +2135,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            53
+            60
           ]
         }
       ],
@@ -2021,7 +2148,7 @@
     {
       "id": 32,
       "type": "QWMComposite",
-      "title": "11 二次校验并贴回",
+      "title": "11 二采保色贴回",
       "pos": [
         5520,
         700
@@ -2037,22 +2164,22 @@
         {
           "name": "original",
           "type": "IMAGE",
-          "link": 52
+          "link": 59
         },
         {
           "name": "edited_crop",
           "type": "IMAGE",
-          "link": 53
+          "link": 60
         },
         {
           "name": "mask",
           "type": "MASK",
-          "link": 54
+          "link": 61
         },
         {
           "name": "geometry",
           "type": "QWM_GEOMETRY",
-          "link": 55
+          "link": 62
         },
         {
           "name": "feather",
@@ -2069,6 +2196,14 @@
             "name": "align"
           },
           "link": null
+        },
+        {
+          "name": "color_match",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "color_match"
+          },
+          "link": null
         }
       ],
       "outputs": [
@@ -2076,20 +2211,20 @@
           "name": "restored_image",
           "type": "IMAGE",
           "links": [
-            56
+            69
           ]
         },
         {
           "name": "comparison",
           "type": "IMAGE",
-          "links": [
-            57
-          ]
+          "links": []
         },
         {
           "name": "report",
           "type": "STRING",
-          "links": []
+          "links": [
+            70
+          ]
         }
       ],
       "properties": {
@@ -2097,67 +2232,118 @@
       },
       "widgets_values": [
         4,
+        true,
         true
       ],
       "widgets_values_named": {
         "feather": 4,
-        "align": true
+        "align": true,
+        "color_match": true
       }
     },
     {
-      "id": 33,
-      "type": "SaveImage",
-      "title": "保存二次修复结果",
+      "id": 37,
+      "type": "QWMFinal",
+      "title": "12 质量检查 / 选择最终结果",
       "pos": [
         5950,
         700
       ],
       "size": [
         310,
-        440
+        180
       ],
       "flags": {},
       "order": 31,
       "mode": 0,
       "inputs": [
         {
-          "name": "images",
+          "name": "original",
           "type": "IMAGE",
-          "link": 56
+          "link": 63
         },
         {
-          "name": "filename_prefix",
+          "name": "initial_mask",
+          "type": "MASK",
+          "link": 64
+        },
+        {
+          "name": "detection_report",
           "type": "STRING",
-          "widget": {
-            "name": "filename_prefix"
-          },
-          "link": null
+          "link": 65
+        },
+        {
+          "name": "first_pass",
+          "type": "IMAGE",
+          "link": 66
+        },
+        {
+          "name": "first_report",
+          "type": "STRING",
+          "link": 67
+        },
+        {
+          "name": "residual_report",
+          "type": "STRING",
+          "link": 68
+        },
+        {
+          "name": "second_pass",
+          "type": "IMAGE",
+          "link": 69
+        },
+        {
+          "name": "second_report",
+          "type": "STRING",
+          "link": 70
+        },
+        {
+          "name": "residual_mask",
+          "type": "MASK",
+          "link": 71
         }
       ],
       "outputs": [
         {
-          "name": "images",
+          "name": "final_image",
           "type": "IMAGE",
-          "links": []
+          "links": [
+            72
+          ]
+        },
+        {
+          "name": "comparison",
+          "type": "IMAGE",
+          "links": [
+            73
+          ]
+        },
+        {
+          "name": "quality_report",
+          "type": "STRING",
+          "links": [
+            74
+          ]
         }
       ],
       "properties": {
-        "Node name for S&R": "SaveImage"
+        "Node name for S&R": "QWMFinal"
       },
       "widgets_values": [
-        "QwenWatermark/restored_verified"
+        null,
+        null,
+        null,
+        null
       ],
-      "widgets_values_named": {
-        "filename_prefix": "QwenWatermark/restored_verified"
-      }
+      "widgets_values_named": {}
     },
     {
-      "id": 34,
+      "id": 33,
       "type": "SaveImage",
-      "title": "二次修复左右对比",
+      "title": "最终结果（自动择优）",
       "pos": [
-        5950,
-        1220
+        6400,
+        700
       ],
       "size": [
         310,
@@ -2170,7 +2356,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 57
+          "link": 72
         },
         {
           "name": "filename_prefix",
@@ -2192,11 +2378,93 @@
         "Node name for S&R": "SaveImage"
       },
       "widgets_values": [
-        "QwenWatermark/comparison_verified"
+        "QwenWatermark/final"
       ],
       "widgets_values_named": {
-        "filename_prefix": "QwenWatermark/comparison_verified"
+        "filename_prefix": "QwenWatermark/final"
       }
+    },
+    {
+      "id": 34,
+      "type": "SaveImage",
+      "title": "最终左右对比",
+      "pos": [
+        6400,
+        1220
+      ],
+      "size": [
+        310,
+        440
+      ],
+      "flags": {},
+      "order": 33,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 73
+        },
+        {
+          "name": "filename_prefix",
+          "type": "STRING",
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "QwenWatermark/final_comparison"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "QwenWatermark/final_comparison"
+      }
+    },
+    {
+      "id": 38,
+      "type": "PreviewAny",
+      "title": "最终质量报告",
+      "pos": [
+        6800,
+        700
+      ],
+      "size": [
+        310,
+        440
+      ],
+      "flags": {},
+      "order": 34,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "STRING",
+          "link": 74
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
     },
     {
       "id": 35,
@@ -2211,13 +2479,13 @@
         440
       ],
       "flags": {},
-      "order": 33,
+      "order": 35,
       "mode": 0,
       "inputs": [
         {
           "name": "source",
           "type": "STRING",
-          "link": 58
+          "link": 75
         }
       ],
       "outputs": [
@@ -2246,13 +2514,13 @@
         440
       ],
       "flags": {},
-      "order": 34,
+      "order": 36,
       "mode": 0,
       "inputs": [
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 59
+          "link": 76
         },
         {
           "name": "filename_prefix",
@@ -2295,11 +2563,19 @@
       2,
       0,
       3,
-      1,
+      9,
       "CLIP"
     ],
     [
       3,
+      1,
+      1,
+      3,
+      10,
+      "MASK"
+    ],
+    [
+      4,
       1,
       0,
       4,
@@ -2307,7 +2583,7 @@
       "IMAGE"
     ],
     [
-      4,
+      5,
       3,
       0,
       4,
@@ -2315,7 +2591,7 @@
       "MASK"
     ],
     [
-      5,
+      6,
       3,
       1,
       4,
@@ -2323,7 +2599,7 @@
       "STRING"
     ],
     [
-      6,
+      7,
       1,
       0,
       5,
@@ -2331,7 +2607,7 @@
       "IMAGE"
     ],
     [
-      7,
+      8,
       4,
       0,
       5,
@@ -2339,55 +2615,71 @@
       "MASK"
     ],
     [
-      8,
-      6,
-      0,
-      7,
-      0,
-      "MODEL"
-    ],
-    [
       9,
-      7,
-      0,
-      8,
-      0,
-      "MODEL"
+      3,
+      3,
+      5,
+      6,
+      "STRING"
     ],
     [
       10,
-      2,
-      0,
-      10,
-      0,
-      "CLIP"
+      3,
+      1,
+      5,
+      7,
+      "STRING"
     ],
     [
       11,
-      9,
+      6,
       0,
-      10,
-      1,
-      "VAE"
+      7,
+      0,
+      "MODEL"
     ],
     [
       12,
-      5,
+      7,
       0,
-      10,
-      2,
-      "IMAGE"
+      8,
+      0,
+      "MODEL"
     ],
     [
       13,
-      3,
-      3,
+      2,
+      0,
       10,
-      3,
-      "STRING"
+      0,
+      "CLIP"
     ],
     [
       14,
+      5,
+      4,
+      10,
+      1,
+      "STRING"
+    ],
+    [
+      15,
+      9,
+      0,
+      10,
+      4,
+      "VAE"
+    ],
+    [
+      16,
+      5,
+      0,
+      10,
+      5,
+      "IMAGE"
+    ],
+    [
+      17,
       8,
       0,
       12,
@@ -2395,31 +2687,31 @@
       "MODEL"
     ],
     [
-      15,
+      18,
       10,
       0,
       12,
-      1,
+      6,
       "CONDITIONING"
     ],
     [
-      16,
+      19,
       10,
       1,
       12,
-      2,
+      7,
       "CONDITIONING"
     ],
     [
-      17,
+      20,
       10,
       2,
       12,
-      3,
+      8,
       "LATENT"
     ],
     [
-      18,
+      21,
       12,
       0,
       13,
@@ -2427,7 +2719,7 @@
       "LATENT"
     ],
     [
-      19,
+      22,
       9,
       0,
       13,
@@ -2435,7 +2727,7 @@
       "VAE"
     ],
     [
-      20,
+      23,
       1,
       0,
       14,
@@ -2443,7 +2735,7 @@
       "IMAGE"
     ],
     [
-      21,
+      24,
       13,
       0,
       14,
@@ -2451,7 +2743,7 @@
       "IMAGE"
     ],
     [
-      22,
+      25,
       4,
       0,
       14,
@@ -2459,7 +2751,7 @@
       "MASK"
     ],
     [
-      23,
+      26,
       5,
       2,
       14,
@@ -2467,7 +2759,7 @@
       "QWM_GEOMETRY"
     ],
     [
-      24,
+      27,
       14,
       0,
       15,
@@ -2475,7 +2767,7 @@
       "IMAGE"
     ],
     [
-      25,
+      28,
       14,
       1,
       16,
@@ -2483,7 +2775,7 @@
       "IMAGE"
     ],
     [
-      26,
+      29,
       3,
       2,
       17,
@@ -2491,7 +2783,7 @@
       "IMAGE"
     ],
     [
-      27,
+      30,
       5,
       0,
       18,
@@ -2499,7 +2791,7 @@
       "IMAGE"
     ],
     [
-      28,
+      31,
       4,
       0,
       19,
@@ -2507,7 +2799,7 @@
       "MASK"
     ],
     [
-      29,
+      32,
       19,
       0,
       20,
@@ -2515,7 +2807,7 @@
       "IMAGE"
     ],
     [
-      30,
+      33,
       13,
       0,
       21,
@@ -2523,7 +2815,7 @@
       "IMAGE"
     ],
     [
-      31,
+      34,
       14,
       2,
       22,
@@ -2531,7 +2823,7 @@
       "STRING"
     ],
     [
-      32,
+      35,
       3,
       1,
       23,
@@ -2539,7 +2831,7 @@
       "STRING"
     ],
     [
-      33,
+      36,
       5,
       3,
       24,
@@ -2547,7 +2839,7 @@
       "STRING"
     ],
     [
-      34,
+      37,
       4,
       2,
       25,
@@ -2555,39 +2847,55 @@
       "STRING"
     ],
     [
-      35,
-      14,
-      0,
-      26,
-      0,
-      "IMAGE"
-    ],
-    [
-      36,
-      2,
-      0,
-      26,
-      1,
-      "CLIP"
-    ],
-    [
-      37,
-      14,
-      0,
-      27,
-      0,
-      "IMAGE"
-    ],
-    [
       38,
+      14,
+      0,
       26,
       0,
-      27,
-      1,
-      "MASK"
+      "IMAGE"
     ],
     [
       39,
+      2,
+      0,
+      26,
+      1,
+      "CLIP"
+    ],
+    [
+      40,
+      4,
+      0,
+      26,
+      6,
+      "MASK"
+    ],
+    [
+      41,
+      14,
+      2,
+      26,
+      8,
+      "STRING"
+    ],
+    [
+      42,
+      14,
+      0,
+      27,
+      0,
+      "IMAGE"
+    ],
+    [
+      43,
+      26,
+      0,
+      27,
+      1,
+      "MASK"
+    ],
+    [
+      44,
       26,
       1,
       27,
@@ -2595,7 +2903,7 @@
       "STRING"
     ],
     [
-      40,
+      45,
       14,
       0,
       28,
@@ -2603,7 +2911,7 @@
       "IMAGE"
     ],
     [
-      41,
+      46,
       27,
       0,
       28,
@@ -2611,7 +2919,23 @@
       "MASK"
     ],
     [
-      42,
+      47,
+      26,
+      3,
+      28,
+      6,
+      "STRING"
+    ],
+    [
+      48,
+      26,
+      1,
+      28,
+      7,
+      "STRING"
+    ],
+    [
+      49,
       2,
       0,
       29,
@@ -2619,79 +2943,79 @@
       "CLIP"
     ],
     [
-      43,
-      9,
-      0,
-      29,
-      1,
-      "VAE"
-    ],
-    [
-      44,
-      28,
-      0,
-      29,
-      2,
-      "IMAGE"
-    ],
-    [
-      45,
-      26,
-      3,
-      29,
-      3,
-      "STRING"
-    ],
-    [
-      46,
-      8,
-      0,
-      30,
-      0,
-      "MODEL"
-    ],
-    [
-      47,
-      29,
-      0,
-      30,
-      1,
-      "CONDITIONING"
-    ],
-    [
-      48,
-      29,
-      1,
-      30,
-      2,
-      "CONDITIONING"
-    ],
-    [
-      49,
-      29,
-      2,
-      30,
-      3,
-      "LATENT"
-    ],
-    [
       50,
-      30,
-      0,
-      31,
-      0,
-      "LATENT"
+      28,
+      4,
+      29,
+      1,
+      "STRING"
     ],
     [
       51,
       9,
       0,
+      29,
+      4,
+      "VAE"
+    ],
+    [
+      52,
+      28,
+      0,
+      29,
+      5,
+      "IMAGE"
+    ],
+    [
+      53,
+      8,
+      0,
+      30,
+      0,
+      "MODEL"
+    ],
+    [
+      54,
+      29,
+      0,
+      30,
+      6,
+      "CONDITIONING"
+    ],
+    [
+      55,
+      29,
+      1,
+      30,
+      7,
+      "CONDITIONING"
+    ],
+    [
+      56,
+      29,
+      2,
+      30,
+      8,
+      "LATENT"
+    ],
+    [
+      57,
+      30,
+      0,
+      31,
+      0,
+      "LATENT"
+    ],
+    [
+      58,
+      9,
+      0,
       31,
       1,
       "VAE"
     ],
     [
-      52,
+      59,
       14,
       0,
       32,
@@ -2699,7 +3023,7 @@
       "IMAGE"
     ],
     [
-      53,
+      60,
       31,
       0,
       32,
@@ -2707,7 +3031,7 @@
       "IMAGE"
     ],
     [
-      54,
+      61,
       27,
       0,
       32,
@@ -2715,7 +3039,7 @@
       "MASK"
     ],
     [
-      55,
+      62,
       28,
       2,
       32,
@@ -2723,23 +3047,103 @@
       "QWM_GEOMETRY"
     ],
     [
-      56,
+      63,
+      1,
+      0,
+      37,
+      0,
+      "IMAGE"
+    ],
+    [
+      64,
+      4,
+      0,
+      37,
+      1,
+      "MASK"
+    ],
+    [
+      65,
+      3,
+      1,
+      37,
+      2,
+      "STRING"
+    ],
+    [
+      66,
+      14,
+      0,
+      37,
+      3,
+      "IMAGE"
+    ],
+    [
+      67,
+      14,
+      2,
+      37,
+      4,
+      "STRING"
+    ],
+    [
+      68,
+      26,
+      1,
+      37,
+      5,
+      "STRING"
+    ],
+    [
+      69,
       32,
+      0,
+      37,
+      6,
+      "IMAGE"
+    ],
+    [
+      70,
+      32,
+      2,
+      37,
+      7,
+      "STRING"
+    ],
+    [
+      71,
+      27,
+      0,
+      37,
+      8,
+      "MASK"
+    ],
+    [
+      72,
+      37,
       0,
       33,
       0,
       "IMAGE"
     ],
     [
-      57,
-      32,
+      73,
+      37,
       1,
       34,
       0,
       "IMAGE"
     ],
     [
-      58,
+      74,
+      37,
+      2,
+      38,
+      0,
+      "STRING"
+    ],
+    [
+      75,
       26,
       1,
       35,
@@ -2747,7 +3151,7 @@
       "STRING"
     ],
     [
-      59,
+      76,
       26,
       2,
       36,
@@ -2755,7 +3159,68 @@
       "IMAGE"
     ]
   ],
-  "groups": [],
+  "groups": [
+    {
+      "title": "01 上传 / 定位 / 遮罩",
+      "bounding": [
+        10,
+        40,
+        1690,
+        1690
+      ],
+      "color": "#446688",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "title": "02 一采局部编辑 / 保色贴回",
+      "bounding": [
+        1710,
+        40,
+        1650,
+        1180
+      ],
+      "color": "#557755",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "title": "03 仅在原修复范围复检",
+      "bounding": [
+        3370,
+        630,
+        820,
+        1190
+      ],
+      "color": "#886644",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "title": "04 按需二采（最多一次）",
+      "bounding": [
+        4190,
+        630,
+        1720,
+        1230
+      ],
+      "color": "#775588",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "title": "05 最终结果 / 质量报告",
+      "bounding": [
+        5920,
+        630,
+        1210,
+        1150
+      ],
+      "color": "#447777",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
   "config": {},
   "extra": {
     "ds": {
@@ -2764,7 +3229,8 @@
         20,
         30
       ]
-    }
+    },
+    "qwm_version": "1.3.0"
   },
   "version": 0.4
 }

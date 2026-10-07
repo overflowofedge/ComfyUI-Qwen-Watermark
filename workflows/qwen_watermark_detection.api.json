@@ -27,10 +27,16 @@
       "mode": "auto_qwen",
       "boxes_json": "{\"coordinate_space\":\"pixels\",\"boxes\":[]}",
       "detection_side": 1024,
-      "expand": 16,
+      "expand": 20,
       "max_tokens": 512,
       "hint": "",
-      "padding_ratio": 0.35
+      "edit_prompt": "",
+      "padding_ratio": 0.35,
+      "manual_mask": [
+        "1",
+        1
+      ],
+      "min_confidence": 0.65
     }
   },
   "17": {

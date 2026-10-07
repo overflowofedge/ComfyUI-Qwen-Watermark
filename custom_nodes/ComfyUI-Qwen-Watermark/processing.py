@@ -44,14 +44,44 @@ def route_for_overlay(item):
 
 def _adaptive_padding_ratio(overlay_type, requested):
     caps = {
-        "text_logo": 0.08,
-        "translucent_text_logo": 0.35,
-        "rectangle": 0.06,
-        "mosaic": 0.06,
+        # Detector boxes are estimates. Leave enough room for antialiasing,
+        # shadows and the smaller URL that often follows a logo.
+        "text_logo": 0.12,
+        # Faint credits are often under-boxed on the right/bottom edge. Keep a
+        # generous safety margin because compositing still protects every pixel
+        # outside the final mask.
+        "translucent_text_logo": 0.50,
+        # Hard-edged patches are frequently reported one or two pattern cells
+        # short. A small border is safer than feeding the model a clipped edge.
+        "rectangle": 0.12,
+        "mosaic": 0.12,
         "irregular_sticker": min(requested, 0.25),
-        "unknown": min(requested, 0.20),
+        "unknown": min(requested, 0.25),
     }
     return min(requested, caps[overlay_type])
+
+
+def coerce_rectangular_overlay_types(result):
+    """Correct common VLM misclassification of wide flat patches as stickers."""
+    corrected = json.loads(json.dumps(result))
+    for item in corrected.get("boxes", []):
+        if normalize_overlay_type(item.get("overlay_type")) != "irregular_sticker":
+            continue
+        values = item.get("source_bbox", item.get("bbox"))
+        if not isinstance(values, (list, tuple)) or len(values) != 4:
+            continue
+        width = abs(float(values[2]) - float(values[0]))
+        height = abs(float(values[3]) - float(values[1]))
+        if width <= 0 or height <= 0:
+            continue
+        label = str(item.get("label", "")).lower()
+        flat_hint = any(token in label for token in ("rectangle", "patch", "block", "mosaic", "pattern", "色块", "花纹", "方块", "马赛克"))
+        # Shape alone cannot distinguish a wide cutout from a rectangular patch.
+        if flat_hint:
+            item["overlay_type"] = "rectangle"
+            item["mask_method"] = "box"
+            item["type_correction"] = "wide_flat_patch"
+    return corrected
 
 
 def _box_intersection_ratio(first, second):
@@ -97,6 +127,7 @@ def merge_detection_results(results, width, height, overlap_threshold=0.20):
             confidence = float(confidence) if isinstance(confidence, (int, float)) else 0.5
             candidate = {
                 "label": str(source.get("label", "watermark")),
+                "background": str(source.get("background", "")),
                 "bbox": box,
                 "overlay_type": normalize_overlay_type(source.get("overlay_type", source.get("type"))),
                 "confidence": max(0.0, min(1.0, confidence)),
@@ -127,53 +158,34 @@ def merge_detection_results(results, width, height, overlap_threshold=0.20):
                 duplicate["mask_method"] = "box"
             if len(candidate["label"]) > len(duplicate["label"]):
                 duplicate["label"] = candidate["label"]
+            if candidate["background"]:
+                duplicate["background"] = candidate["background"]
     return {"coordinate_space": "pixels", "image_size": [width, height], "boxes": merged}
 
 
-def build_edit_prompt(result, hint=""):
+def build_edit_prompt(result, hint="", edit_prompt=""):
     types = {normalize_overlay_type(item.get("overlay_type")) for item in result.get("boxes", [])}
     instructions = [
-        "编辑<image1>。只移除检测区域内的后期叠加物，并依据紧邻区域恢复被遮挡的内容。",
+        "编辑<image1>。只修复局部填充痕迹和后期叠加物，恢复为周围可见材质与纹理的连续延伸。",
         "严格保持原图的相机、透视、物体位置、人物身份、轮廓、材质、光照、真实文字和整体颜色。不得改变构图、移动物体、裁剪或缩放画面。",
     ]
+    if result.get("source") in {"manual_mask", "manual_boxes"}:
+        instructions.append("手动选区内全部属于需要移除的后期叠加物；清理半透明边缘和残影，延续选区外的原场景纹理。")
     if types & {"text_logo", "translucent_text_logo"}:
         instructions.append("完整移除文字水印、平台标记、Logo、网址、所有笔画、描边、阴影和低透明度残留；恢复连续的建筑线条、道路、皮肤、服装或背景纹理。")
     if types & {"rectangle", "mosaic"}:
-        instructions.append("矩形花纹、纯色色块或马赛克是后期遮挡；移除整个硬边区域和接缝，不得用模糊色块代替背景。")
-    if "irregular_sticker" in types or "unknown" in types:
+        instructions.append("恢复矩形填充区域下原本的场景纹理，清除马赛克和硬边接缝。")
+    if "irregular_sticker" in types:
         instructions.append("不规则对象是后期贴纸；完整移除其主体、四肢、耳朵、白边、半透明边缘和投影，不要重画或保留其形状。")
+    backgrounds = list(dict.fromkeys(item.get("background", "").strip() for item in result.get("boxes", []) if item.get("background", "").strip()))
+    if backgrounds:
+        instructions.append("周围可见的原场景材质：" + "；".join(backgrounds) + "。据此延续纹理和颜色。")
     if hint.strip():
         instructions.append("补充要求：" + hint.strip())
+    if edit_prompt.strip():
+        instructions.append("用户编辑指令：" + edit_prompt.strip())
     instructions.append("输出与输入尺寸相同的完整局部图像，不添加无关内容。")
-    return "".join(instructions)
-
-
-def calibrate_large_translucent_boxes(result, width, height):
-    """Correct the common Qwen coordinate bias for large central translucent credits."""
-    calibrated = json.loads(json.dumps(result))
-    for item in calibrated.get("boxes", []):
-        if normalize_overlay_type(item.get("overlay_type")) != "translucent_text_logo":
-            continue
-        values = item.get("source_bbox", item.get("bbox"))
-        if not isinstance(values, (list, tuple)) or len(values) != 4:
-            continue
-        x0, y0, x1, y1 = [int(round(float(value))) for value in values]
-        box_width = max(1, x1 - x0)
-        center_x = (x0 + x1) / (2 * max(1, width))
-        center_y = (y0 + y1) / (2 * max(1, height))
-        if box_width < width * 0.18 or not 0.25 <= center_x <= 0.75 or not 0.30 <= center_y <= 0.60:
-            continue
-        shift = min(max(24, round(height * 0.08)), max(0, height - y1))
-        if shift <= 0:
-            continue
-        for key in ("bbox", "source_bbox"):
-            current = item.get(key)
-            if isinstance(current, (list, tuple)) and len(current) == 4:
-                item[key] = [current[0], min(height, current[1] + shift),
-                             current[2], min(height, current[3] + shift)]
-        item["coordinate_calibration"] = {"axis": "y", "shift_px": shift,
-                                           "reason": "large_central_translucent_logo"}
-    return calibrated
+    return "\n".join(instructions)
 
 
 def _finite_number(value, field):
@@ -263,6 +275,7 @@ def parse_boxes(text, width, height, expand=6, padding_ratio=0, adaptive_padding
         confidence = item.get("confidence", 0.5)
         confidence = float(confidence) if isinstance(confidence, (int, float)) else 0.5
         boxes.append({"label": str(item.get("label", "watermark")), "bbox": box,
+                      "background": str(item.get("background", "")),
                       "source_bbox": source_box, "overlay_type": overlay_type,
                       "mask_method": route_for_overlay(item),
                       "confidence": round(max(0.0, min(1.0, confidence)), 4)})
@@ -406,6 +419,8 @@ def restore_crop(edited, geometry):
         raise ValueError(f"编辑输出尺寸 {edited.shape[1]}x{edited.shape[0]} 与参考 {pw}x{ph} 不同。请连接 TextEncodeQwenImage21 的 latent 输出。")
     rw, rh = geometry["content_size"]
     x0, y0, x1, y1 = geometry["roi"]
+    if not (0 < rw <= pw and 0 < rh <= ph and x0 < x1 and y0 < y1):
+        raise ValueError("编辑几何信息的有效内容或 ROI 尺寸无效。")
     return cv2.resize(edited[:rh, :rw], (x1 - x0, y1 - y0), interpolation=cv2.INTER_LANCZOS4)
 
 
@@ -431,8 +446,11 @@ def align_crop(original, edited, mask, enabled=True):
         return edited, report
     shift = warp[:, 2]
     report.update({"correlation": round(float(score), 5), "shift_px": [round(float(v), 3) for v in shift]})
-    if max(abs(shift)) > 12 or score < 0.5:
+    if max(abs(shift)) > 12 or score < 0.85:
         report["warning"] = "编辑区域可能存在结构变化，请检查对比图或重试。未自动校正。"
+        return edited, report
+    if max(abs(shift)) < 0.25:
+        report["reason"] = "subpixel_noise_ignored"
         return edited, report
     aligned = cv2.warpAffine(edited, warp, (edited.shape[1], edited.shape[0]),
                              flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP, borderMode=cv2.BORDER_REPLICATE)
@@ -445,35 +463,160 @@ def align_crop(original, edited, mask, enabled=True):
     return edited, report
 
 
-def composite(original, edited, mask, geometry, feather=6, align=True):
+def match_context_color(original, edited, selected, enabled=True):
+    """Fit bounded RGB gains using paired, unedited context and held-out pixels."""
+    valid = cv2.dilate(selected.astype(np.uint8), np.ones((7, 7), np.uint8)) == 0
+    report = {"enabled": enabled, "applied": False, "samples": int(valid.sum())}
+    if not enabled or valid.sum() < 256:
+        report["reason"] = "disabled" if not enabled else "insufficient_context"
+        return edited, report
+    ref = cv2.GaussianBlur(original, (0, 0), 1.2)[valid][::max(1, int(valid.sum()) // 32000)]
+    src = cv2.GaussianBlur(edited, (0, 0), 1.2)[valid][::max(1, int(valid.sum()) // 32000)]
+    train = np.arange(len(ref)) % 3 != 0
+    before = np.abs(ref[~train] - src[~train])
+    report["context_mae_before"] = float(before.mean())
+    if report["context_mae_before"] > 0.1:
+        report.update(reason="context_changed_too_much", context_mae_after=report["context_mae_before"])
+        return edited, report
+    if float(np.median(before)) <= 1 / 255:
+        report["reason"] = "already_matched"
+        report["context_mae_after"] = report["context_mae_before"]
+        return edited, report
+    gain, bias = np.ones(3, np.float32), np.zeros(3, np.float32)
+    for channel in range(3):
+        x, y = src[train, channel], ref[train, channel]
+        weights = np.ones_like(x)
+        for _ in range(4):
+            xm, ym = np.average(x, weights=weights), np.average(y, weights=weights)
+            variance = np.average((x - xm) ** 2, weights=weights)
+            g = np.clip(np.average((x - xm) * (y - ym), weights=weights) / variance, 0.8, 1.25) if variance > 0.0001 else 1.0
+            b = np.clip(np.median(y - g * x), -0.08, 0.08)
+            residual = y - (g * x + b)
+            scale = max(1 / 255, float(np.median(np.abs(residual))) * 1.4826)
+            weights = np.minimum(1.0, 1.5 * scale / np.maximum(np.abs(residual), 1e-6))
+        gain[channel], bias[channel] = g, b
+    after = np.abs(ref[~train] - np.clip(src[~train] * gain + bias, 0, 1))
+    report.update(gain=gain.tolist(), bias=bias.tolist())
+    if after.mean() < before.mean() * 0.85 and np.percentile(after, 90) <= np.percentile(before, 90):
+        report.update(applied=True, reason="validated_on_context", context_mae_after=float(after.mean()))
+        return np.clip(edited * gain + bias, 0, 1), report
+    report.update(reason="no_reliable_improvement", context_mae_after=report["context_mae_before"])
+    return edited, report
+
+
+def boundary_color_correction(original, edited, selected, width):
+    """Extend only exterior RGB discrepancies into a narrow interior band."""
+    if width <= 0 or not np.any(~selected) or not np.any(selected):
+        return edited, {"applied": False, "width": width}
+    # Never sample original pixels inside the selection: those contain the overlay.
+    valid = (~selected).astype(np.float32)
+    sigma = max(1.0, width / 2)
+    delta = np.clip(original - edited, -0.08, 0.08) * valid[..., None]
+    weights = cv2.GaussianBlur(valid, (0, 0), sigma)
+    field = cv2.GaussianBlur(delta, (0, 0), sigma) / np.maximum(weights[..., None], 1e-6)
+    distance = cv2.distanceTransform(np.pad(selected.astype(np.uint8), 1), cv2.DIST_L2, 5)[1:-1, 1:-1]
+    strength = np.clip(1 - distance / max(1, width), 0, 1)
+    strength = strength * strength * (3 - 2 * strength)
+    strength *= selected & (weights > 0.01)
+    adjustment = field * strength[..., None]
+    maximum = float(np.max(np.abs(adjustment)))
+    if maximum <= 1 / 255:
+        return edited, {"applied": False, "width": width, "max_adjustment": maximum}
+    return np.clip(edited + adjustment, 0, 1), {"applied": True, "width": width, "max_adjustment": maximum}
+
+
+def boundary_jump(image, mask):
+    selected = mask > 0
+    samples = []
+    for axis in (0, 1):
+        edge = np.diff(selected.astype(np.int8), axis=axis) != 0
+        values = np.mean(np.abs(np.diff(image, axis=axis)), axis=2)[edge]
+        if len(values):
+            samples.append(values)
+    return float(np.percentile(np.concatenate(samples), 90)) if samples else 0.0
+
+
+def constrain_residuals(result, allowed_mask, expand=24, min_confidence=0.8):
+    """Residual detection may repair only the original selection and its guard."""
+    height, width = allowed_mask.shape
+    allowed = cv2.dilate((allowed_mask > 0).astype(np.uint8),
+                         cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * expand + 1, 2 * expand + 1))) > 0
+    accepted, rejected = [], []
+    uncertain = False
+    for item in result.get("boxes", []):
+        x0, y0, x1, y1 = item.get("source_bbox", item["bbox"])
+        overlap = float(np.mean(allowed[y0:y1, x0:x1])) if x1 > x0 and y1 > y0 else 0
+        if overlap >= 0.5 and item.get("confidence", 0) >= min_confidence:
+            accepted.append(item)
+        else:
+            rejected.append({**item, "reason": "outside_repair_scope" if overlap < 0.5 else "low_confidence"})
+            uncertain |= overlap >= 0.5
+    mask, parsed = parse_boxes(json.dumps({"coordinate_space": "pixels", "boxes": accepted}),
+                               width, height, expand=expand, padding_ratio=0)
+    mask *= allowed
+    parsed.update(rejected_boxes=rejected, uncertain=uncertain, scope_pixels=int(allowed.sum()))
+    return mask, parsed
+
+
+def choose_final(first, second, first_mask, second_mask, second_report):
+    """Reject a second pass that increases boundary discontinuity or leaves its scope."""
+    report = {"selected_pass": 1, "second_pass_accepted": False, "reasons": []}
+    if second is None:
+        return first, first_mask, report
+    before, after = boundary_jump(first, second_mask), boundary_jump(second, second_mask)
+    report.update(boundary_jump_before=before, boundary_jump_after=after)
+    if after > max(4 / 255, before * 1.3 + 2 / 255):
+        report["reasons"].append("second_pass_boundary_regression")
+    if second_report.get("alignment", {}).get("warning"):
+        report["reasons"].append("second_pass_alignment_uncertain")
+    if np.any(second_mask <= 0) and np.max(np.abs(second[second_mask <= 0] - first[second_mask <= 0])) > 0:
+        report["reasons"].append("second_pass_changed_protected_pixels")
+    if report["reasons"]:
+        return first, first_mask, report
+    report.update(selected_pass=2, second_pass_accepted=True)
+    return second, np.maximum(first_mask, second_mask), report
+
+
+def composite(original, edited, mask, geometry, feather=6, align=True, color_match=True):
     if not isinstance(original, np.ndarray) or original.ndim < 3 or original.shape[2] < 3:
         raise ValueError("原图必须是 HxWxC 数组。")
     if not isinstance(mask, np.ndarray) or mask.shape != original.shape[:2]:
         raise ValueError("遮罩尺寸与原图不同。请连接原图尺寸的 MASK。")
     if not isinstance(edited, np.ndarray) or edited.ndim < 3 or edited.shape[2] < 3:
         raise ValueError("编辑结果必须是 HxWxC 数组。")
+    if not np.isfinite(original).all() or not np.isfinite(edited).all() or not np.isfinite(mask).all():
+        raise ValueError("图像或遮罩包含 NaN/Inf，无法安全贴回。")
     original = original.astype(np.float32)
     edited = restore_crop(edited.astype(np.float32), geometry)
     x0, y0, x1, y1 = geometry["roi"]
     height, width = original.shape[:2]
+    if geometry.get("image_size", [width, height]) != [width, height]:
+        raise ValueError("geometry 的原图尺寸不匹配，请连接同一次裁剪结果。")
     if not (0 <= x0 < x1 <= width and 0 <= y0 < y1 <= height):
         raise ValueError("编辑几何信息中的 ROI 超出原图范围。")
+    covered = np.zeros(mask.shape, bool)
+    covered[y0:y1, x0:x1] = True
+    if np.any((mask > 0) & ~covered):
+        raise ValueError("遮罩超出裁剪 ROI。请连接同一次 QWMPrepare 的 geometry 和 MASK。")
     feather = _integer_value(feather, "feather")
     local_mask = np.clip(mask[y0:y1, x0:x1], 0, 1).astype(np.float32)
     edited, alignment = align_crop(original[y0:y1, x0:x1], edited, local_mask, align)
-    if feather > 0:
-        # Feather inward, so pixels outside the selection remain exactly original.
-        padded_mask = np.pad((local_mask > 0).astype(np.uint8), 1)
-        distance = cv2.distanceTransform(padded_mask, cv2.DIST_L2, 5)[1:-1, 1:-1]
-        local_mask *= np.clip(distance / feather, 0, 1)
+    region = original[y0:y1, x0:x1]
+    changed = local_mask > 0
+    edited, color = match_context_color(region, edited, changed, color_match)
+    scale = max((x1 - x0) / geometry["content_size"][0], (y1 - y0) / geometry["content_size"][1])
+    edited, boundary = boundary_color_correction(region, edited, changed, round(feather * scale))
     output = original.copy()
     region = output[y0:y1, x0:x1]
-    changed = local_mask > 0
-    alpha = local_mask[changed, None]
-    region[changed] = region[changed] * (1 - alpha) + edited[changed] * alpha
-    output = np.clip(output, 0, 1)
+    region[changed] = np.clip(edited[changed], 0, 1)
     outside = mask <= 0
     difference = np.max(np.abs(output[outside] - original[outside])) if np.any(outside) else 0.0
     report = {"geometry": geometry, "alignment": alignment, "selection_pixels": int(np.count_nonzero(mask)),
               "preserved_fraction": round(float(np.mean(outside)), 6), "outside_mask_max_difference": float(difference)}
+    seam_before = boundary_jump(original[y0:y1, x0:x1], local_mask)
+    seam_after = boundary_jump(output[y0:y1, x0:x1], local_mask)
+    report.update(color=color, boundary=boundary, edge_blend="exterior_color_field",
+                  boundary_jump_p90=seam_after, boundary_jump_original_p90=seam_before,
+                  boundary_jump_excess_p90=max(0.0, seam_after - seam_before),
+                  working_precision="float32_rgb", source_pixels_mixed_inside_mask=0)
     return output, report
