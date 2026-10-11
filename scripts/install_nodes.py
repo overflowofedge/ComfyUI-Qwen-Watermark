@@ -16,8 +16,8 @@ def main():
     target = args.comfy_root / "custom_nodes" / name
     target.mkdir(exist_ok=True)
     for filename in ("__init__.py", "nodes.py", "processing.py", "requirements.txt", "README.md"):
-        source = ROOT / "custom_nodes" / name / filename
-        shutil.copy2(source, target / filename)
+        source_file = ROOT / filename
+        shutil.copy2(source_file, target / filename)
     print("Installed:", target)
     print("Restart ComfyUI to register the six nodes (v1.3.0).")
 

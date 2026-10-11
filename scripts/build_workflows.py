@@ -48,7 +48,8 @@ def api_graph():
         "24": node("PreviewAny", source=["5", 3]),
         "25": node("PreviewAny", source=["4", 2]),
         "26": node("QWMResidualDetect", image=["14", 0], clip=["2", 0], detection_side=1024,
-                   expand=24, max_tokens=384, edit_prompt="", allowed_mask=["4", 0], enabled=True, min_confidence=0.8, first_report=["14", 2]),
+                   expand=24, max_tokens=384, edit_prompt="", allowed_mask=["4", 0], enabled=True,
+                   min_confidence=0.8, first_report=["14", 2], original_image=["1", 0]),
         "27": node("QWMRefineMask", image=["14", 0], mask=["26", 0], boxes_json=["26", 1], method="auto",
                    sam_model="sam_vit_b_01ec64.pth", device="auto", dilation=8, adaptive_dilation=False),
         "28": node("QWMPrepare", image=["14", 0], mask=["27", 0], context_pixels=128, max_side=768,
@@ -84,9 +85,6 @@ def structure_graph():
         graph[encode] = {"class_type": "VAEEncode", "inputs": {"pixels": [crop, 0], "vae": ["9", 0]}}
         graph[masked] = {"class_type": "SetLatentNoiseMask", "inputs": {"samples": [encode, 0], "mask": [crop, 1]}}
         graph[sampler]["inputs"]["latent_image"] = [masked, 0]
-    # A clean residual result does not prove anatomical correctness. Start with
-    # one masked edit and a needs_review result; a reviewer may enable rechecks.
-    graph["26"]["inputs"]["enabled"] = False
     return graph
 
 

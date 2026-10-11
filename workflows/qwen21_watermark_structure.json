@@ -1,8 +1,8 @@
 {
-  "id": "73902133-9a7c-4000-b686-de4536bb333e",
+  "id": "37b2c907-a015-47c3-85d9-4029fa4d4b84",
   "revision": 0,
   "last_node_id": 44,
-  "last_link_id": 86,
+  "last_link_id": 87,
   "nodes": [
     {
       "id": 1,
@@ -38,7 +38,8 @@
             4,
             7,
             23,
-            63
+            42,
+            64
           ]
         },
         {
@@ -109,7 +110,7 @@
             2,
             13,
             39,
-            49
+            50
           ]
         }
       ],
@@ -246,7 +247,7 @@
             6,
             10,
             35,
-            65
+            66
           ]
         },
         {
@@ -371,7 +372,7 @@
             25,
             31,
             40,
-            64
+            65
           ]
         },
         {
@@ -482,14 +483,14 @@
           "links": [
             16,
             30,
-            79
+            80
           ]
         },
         {
           "name": "crop_mask",
           "type": "MASK",
           "links": [
-            82
+            83
           ]
         },
         {
@@ -511,7 +512,7 @@
           "type": "STRING",
           "links": [
             14,
-            77
+            78
           ]
         }
       ],
@@ -680,7 +681,7 @@
           "type": "MODEL",
           "links": [
             17,
-            53
+            54
           ]
         }
       ],
@@ -728,10 +729,10 @@
           "links": [
             15,
             22,
-            51,
-            58,
-            80,
-            84
+            52,
+            59,
+            81,
+            85
           ]
         }
       ],
@@ -1059,10 +1060,10 @@
           "links": [
             27,
             38,
-            42,
-            45,
-            59,
-            66
+            43,
+            46,
+            60,
+            67
           ]
         },
         {
@@ -1078,7 +1079,7 @@
           "links": [
             34,
             41,
-            67
+            68
           ]
         }
       ],
@@ -1614,6 +1615,11 @@
             "name": "min_confidence"
           },
           "link": null
+        },
+        {
+          "name": "original_image",
+          "type": "IMAGE",
+          "link": 42
         }
       ],
       "outputs": [
@@ -1621,31 +1627,31 @@
           "name": "residual_mask",
           "type": "MASK",
           "links": [
-            43
+            44
           ]
         },
         {
           "name": "boxes_json",
           "type": "STRING",
           "links": [
-            44,
-            48,
-            68,
-            75
+            45,
+            49,
+            69,
+            76
           ]
         },
         {
           "name": "preview",
           "type": "IMAGE",
           "links": [
-            76
+            77
           ]
         },
         {
           "name": "edit_prompt",
           "type": "STRING",
           "links": [
-            47
+            48
           ]
         }
       ],
@@ -1657,7 +1663,7 @@
         24,
         384,
         "",
-        false,
+        true,
         "",
         0.8
       ],
@@ -1666,7 +1672,7 @@
         "expand": 24,
         "max_tokens": 384,
         "edit_prompt": "",
-        "enabled": false,
+        "enabled": true,
         "min_confidence": 0.8
       }
     },
@@ -1689,17 +1695,17 @@
         {
           "name": "image",
           "type": "IMAGE",
-          "link": 42
+          "link": 43
         },
         {
           "name": "mask",
           "type": "MASK",
-          "link": 43
+          "link": 44
         },
         {
           "name": "boxes_json",
           "type": "STRING",
-          "link": 44
+          "link": 45
         },
         {
           "name": "method",
@@ -1747,9 +1753,9 @@
           "name": "refined_mask",
           "type": "MASK",
           "links": [
-            46,
-            61,
-            71
+            47,
+            62,
+            72
           ]
         },
         {
@@ -1801,12 +1807,12 @@
         {
           "name": "image",
           "type": "IMAGE",
-          "link": 45
+          "link": 46
         },
         {
           "name": "mask",
           "type": "MASK",
-          "link": 46
+          "link": 47
         },
         {
           "name": "context_pixels",
@@ -1843,12 +1849,12 @@
         {
           "name": "edit_prompt",
           "type": "STRING",
-          "link": 47
+          "link": 48
         },
         {
           "name": "boxes_json",
           "type": "STRING",
-          "link": 48
+          "link": 49
         }
       ],
       "outputs": [
@@ -1856,22 +1862,22 @@
           "name": "reference_crop",
           "type": "IMAGE",
           "links": [
-            52,
-            83
+            53,
+            84
           ]
         },
         {
           "name": "crop_mask",
           "type": "MASK",
           "links": [
-            86
+            87
           ]
         },
         {
           "name": "geometry",
           "type": "QWM_GEOMETRY",
           "links": [
-            62
+            63
           ]
         },
         {
@@ -1883,8 +1889,8 @@
           "name": "edit_prompt",
           "type": "STRING",
           "links": [
-            50,
-            78
+            51,
+            79
           ]
         }
       ],
@@ -1925,12 +1931,12 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 49
+          "link": 50
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "link": 50
+          "link": 51
         },
         {
           "name": "negative_prompt",
@@ -1951,12 +1957,12 @@
         {
           "name": "vae",
           "type": "VAE",
-          "link": 51
+          "link": 52
         },
         {
           "name": "images.image_1",
           "type": "IMAGE",
-          "link": 52
+          "link": 53
         }
       ],
       "outputs": [
@@ -1964,14 +1970,14 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            54
+            55
           ]
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            55
+            56
           ]
         },
         {
@@ -2012,7 +2018,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 53
+          "link": 54
         },
         {
           "name": "seed",
@@ -2057,17 +2063,17 @@
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 54
+          "link": 55
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 55
+          "link": 56
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 56
+          "link": 57
         },
         {
           "name": "denoise",
@@ -2083,7 +2089,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            57
+            58
           ]
         }
       ],
@@ -2128,12 +2134,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 57
+          "link": 58
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 58
+          "link": 59
         }
       ],
       "outputs": [
@@ -2141,7 +2147,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            60
+            61
           ]
         }
       ],
@@ -2170,22 +2176,22 @@
         {
           "name": "original",
           "type": "IMAGE",
-          "link": 59
+          "link": 60
         },
         {
           "name": "edited_crop",
           "type": "IMAGE",
-          "link": 60
+          "link": 61
         },
         {
           "name": "mask",
           "type": "MASK",
-          "link": 61
+          "link": 62
         },
         {
           "name": "geometry",
           "type": "QWM_GEOMETRY",
-          "link": 62
+          "link": 63
         },
         {
           "name": "feather",
@@ -2217,7 +2223,7 @@
           "name": "restored_image",
           "type": "IMAGE",
           "links": [
-            69
+            70
           ]
         },
         {
@@ -2229,7 +2235,7 @@
           "name": "report",
           "type": "STRING",
           "links": [
-            70
+            71
           ]
         }
       ],
@@ -2266,47 +2272,47 @@
         {
           "name": "original",
           "type": "IMAGE",
-          "link": 63
+          "link": 64
         },
         {
           "name": "initial_mask",
           "type": "MASK",
-          "link": 64
+          "link": 65
         },
         {
           "name": "detection_report",
           "type": "STRING",
-          "link": 65
+          "link": 66
         },
         {
           "name": "first_pass",
           "type": "IMAGE",
-          "link": 66
+          "link": 67
         },
         {
           "name": "first_report",
           "type": "STRING",
-          "link": 67
+          "link": 68
         },
         {
           "name": "residual_report",
           "type": "STRING",
-          "link": 68
+          "link": 69
         },
         {
           "name": "second_pass",
           "type": "IMAGE",
-          "link": 69
+          "link": 70
         },
         {
           "name": "second_report",
           "type": "STRING",
-          "link": 70
+          "link": 71
         },
         {
           "name": "residual_mask",
           "type": "MASK",
-          "link": 71
+          "link": 72
         }
       ],
       "outputs": [
@@ -2314,21 +2320,21 @@
           "name": "final_image",
           "type": "IMAGE",
           "links": [
-            72
+            73
           ]
         },
         {
           "name": "comparison",
           "type": "IMAGE",
           "links": [
-            73
+            74
           ]
         },
         {
           "name": "quality_report",
           "type": "STRING",
           "links": [
-            74
+            75
           ]
         }
       ],
@@ -2362,7 +2368,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 72
+          "link": 73
         },
         {
           "name": "filename_prefix",
@@ -2409,7 +2415,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 73
+          "link": 74
         },
         {
           "name": "filename_prefix",
@@ -2456,7 +2462,7 @@
         {
           "name": "source",
           "type": "STRING",
-          "link": 74
+          "link": 75
         }
       ],
       "outputs": [
@@ -2491,7 +2497,7 @@
         {
           "name": "source",
           "type": "STRING",
-          "link": 75
+          "link": 76
         }
       ],
       "outputs": [
@@ -2526,7 +2532,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 76
+          "link": 77
         },
         {
           "name": "filename_prefix",
@@ -2573,7 +2579,7 @@
         {
           "name": "source",
           "type": "STRING",
-          "link": 77
+          "link": 78
         }
       ],
       "outputs": [
@@ -2608,7 +2614,7 @@
         {
           "name": "source",
           "type": "STRING",
-          "link": 78
+          "link": 79
         }
       ],
       "outputs": [
@@ -2643,12 +2649,12 @@
         {
           "name": "pixels",
           "type": "IMAGE",
-          "link": 79
+          "link": 80
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 80
+          "link": 81
         }
       ],
       "outputs": [
@@ -2656,7 +2662,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            81
+            82
           ]
         }
       ],
@@ -2685,12 +2691,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 81
+          "link": 82
         },
         {
           "name": "mask",
           "type": "MASK",
-          "link": 82
+          "link": 83
         }
       ],
       "outputs": [
@@ -2727,12 +2733,12 @@
         {
           "name": "pixels",
           "type": "IMAGE",
-          "link": 83
+          "link": 84
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 84
+          "link": 85
         }
       ],
       "outputs": [
@@ -2740,7 +2746,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            85
+            86
           ]
         }
       ],
@@ -2769,12 +2775,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 85
+          "link": 86
         },
         {
           "name": "mask",
           "type": "MASK",
-          "link": 86
+          "link": 87
         }
       ],
       "outputs": [
@@ -2782,7 +2788,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            56
+            57
           ]
         }
       ],
@@ -3124,6 +3130,14 @@
     ],
     [
       42,
+      1,
+      0,
+      26,
+      10,
+      "IMAGE"
+    ],
+    [
+      43,
       14,
       0,
       27,
@@ -3131,7 +3145,7 @@
       "IMAGE"
     ],
     [
-      43,
+      44,
       26,
       0,
       27,
@@ -3139,7 +3153,7 @@
       "MASK"
     ],
     [
-      44,
+      45,
       26,
       1,
       27,
@@ -3147,7 +3161,7 @@
       "STRING"
     ],
     [
-      45,
+      46,
       14,
       0,
       28,
@@ -3155,7 +3169,7 @@
       "IMAGE"
     ],
     [
-      46,
+      47,
       27,
       0,
       28,
@@ -3163,7 +3177,7 @@
       "MASK"
     ],
     [
-      47,
+      48,
       26,
       3,
       28,
@@ -3171,7 +3185,7 @@
       "STRING"
     ],
     [
-      48,
+      49,
       26,
       1,
       28,
@@ -3179,7 +3193,7 @@
       "STRING"
     ],
     [
-      49,
+      50,
       2,
       0,
       29,
@@ -3187,7 +3201,7 @@
       "CLIP"
     ],
     [
-      50,
+      51,
       28,
       4,
       29,
@@ -3195,7 +3209,7 @@
       "STRING"
     ],
     [
-      51,
+      52,
       9,
       0,
       29,
@@ -3203,7 +3217,7 @@
       "VAE"
     ],
     [
-      52,
+      53,
       28,
       0,
       29,
@@ -3211,7 +3225,7 @@
       "IMAGE"
     ],
     [
-      53,
+      54,
       8,
       0,
       30,
@@ -3219,7 +3233,7 @@
       "MODEL"
     ],
     [
-      54,
+      55,
       29,
       0,
       30,
@@ -3227,7 +3241,7 @@
       "CONDITIONING"
     ],
     [
-      55,
+      56,
       29,
       1,
       30,
@@ -3235,7 +3249,7 @@
       "CONDITIONING"
     ],
     [
-      56,
+      57,
       44,
       0,
       30,
@@ -3243,7 +3257,7 @@
       "LATENT"
     ],
     [
-      57,
+      58,
       30,
       0,
       31,
@@ -3251,7 +3265,7 @@
       "LATENT"
     ],
     [
-      58,
+      59,
       9,
       0,
       31,
@@ -3259,7 +3273,7 @@
       "VAE"
     ],
     [
-      59,
+      60,
       14,
       0,
       32,
@@ -3267,7 +3281,7 @@
       "IMAGE"
     ],
     [
-      60,
+      61,
       31,
       0,
       32,
@@ -3275,7 +3289,7 @@
       "IMAGE"
     ],
     [
-      61,
+      62,
       27,
       0,
       32,
@@ -3283,7 +3297,7 @@
       "MASK"
     ],
     [
-      62,
+      63,
       28,
       2,
       32,
@@ -3291,7 +3305,7 @@
       "QWM_GEOMETRY"
     ],
     [
-      63,
+      64,
       1,
       0,
       37,
@@ -3299,7 +3313,7 @@
       "IMAGE"
     ],
     [
-      64,
+      65,
       4,
       0,
       37,
@@ -3307,7 +3321,7 @@
       "MASK"
     ],
     [
-      65,
+      66,
       3,
       1,
       37,
@@ -3315,7 +3329,7 @@
       "STRING"
     ],
     [
-      66,
+      67,
       14,
       0,
       37,
@@ -3323,7 +3337,7 @@
       "IMAGE"
     ],
     [
-      67,
+      68,
       14,
       2,
       37,
@@ -3331,7 +3345,7 @@
       "STRING"
     ],
     [
-      68,
+      69,
       26,
       1,
       37,
@@ -3339,7 +3353,7 @@
       "STRING"
     ],
     [
-      69,
+      70,
       32,
       0,
       37,
@@ -3347,7 +3361,7 @@
       "IMAGE"
     ],
     [
-      70,
+      71,
       32,
       2,
       37,
@@ -3355,7 +3369,7 @@
       "STRING"
     ],
     [
-      71,
+      72,
       27,
       0,
       37,
@@ -3363,7 +3377,7 @@
       "MASK"
     ],
     [
-      72,
+      73,
       37,
       0,
       33,
@@ -3371,7 +3385,7 @@
       "IMAGE"
     ],
     [
-      73,
+      74,
       37,
       1,
       34,
@@ -3379,7 +3393,7 @@
       "IMAGE"
     ],
     [
-      74,
+      75,
       37,
       2,
       38,
@@ -3387,7 +3401,7 @@
       "STRING"
     ],
     [
-      75,
+      76,
       26,
       1,
       35,
@@ -3395,7 +3409,7 @@
       "STRING"
     ],
     [
-      76,
+      77,
       26,
       2,
       36,
@@ -3403,7 +3417,7 @@
       "IMAGE"
     ],
     [
-      77,
+      78,
       5,
       4,
       41,
@@ -3411,7 +3425,7 @@
       "STRING"
     ],
     [
-      78,
+      79,
       28,
       4,
       42,
@@ -3419,7 +3433,7 @@
       "STRING"
     ],
     [
-      79,
+      80,
       5,
       0,
       39,
@@ -3427,7 +3441,7 @@
       "IMAGE"
     ],
     [
-      80,
+      81,
       9,
       0,
       39,
@@ -3435,7 +3449,7 @@
       "VAE"
     ],
     [
-      81,
+      82,
       39,
       0,
       40,
@@ -3443,7 +3457,7 @@
       "LATENT"
     ],
     [
-      82,
+      83,
       5,
       1,
       40,
@@ -3451,7 +3465,7 @@
       "MASK"
     ],
     [
-      83,
+      84,
       28,
       0,
       43,
@@ -3459,7 +3473,7 @@
       "IMAGE"
     ],
     [
-      84,
+      85,
       9,
       0,
       43,
@@ -3467,7 +3481,7 @@
       "VAE"
     ],
     [
-      85,
+      86,
       43,
       0,
       44,
@@ -3475,7 +3489,7 @@
       "LATENT"
     ],
     [
-      86,
+      87,
       28,
       1,
       44,

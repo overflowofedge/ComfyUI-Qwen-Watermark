@@ -9,7 +9,7 @@ from PIL import Image
 
 
 ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location("processing", ROOT / "custom_nodes/ComfyUI-Qwen-Watermark/processing.py")
+spec = importlib.util.spec_from_file_location("processing", ROOT / "processing.py")
 processing = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(processing)
 

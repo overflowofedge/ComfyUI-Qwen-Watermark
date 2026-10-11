@@ -329,11 +329,15 @@
         "4",
         0
       ],
-      "enabled": false,
+      "enabled": true,
       "min_confidence": 0.8,
       "first_report": [
         "14",
         2
+      ],
+      "original_image": [
+        "1",
+        0
       ]
     }
   },

@@ -27,6 +27,8 @@ def graph_differences(expected, actual):
 def main():
     parser = argparse.ArgumentParser(description="验证前端导入、参数回导和运行按钮；拦截提交，不启动推理")
     parser.add_argument("--server", default="http://127.0.0.1:8188")
+    parser.add_argument("--object-info", type=Path, help="使用本地节点定义检查尚未加载的节点；仍拦截推理提交")
+    parser.add_argument("--workflow", type=Path, action="append", help="检查指定 UI JSON 及同名 .api.json，可重复指定")
     args = parser.parse_args()
     diagnostics = ROOT / "diagnostics"
     diagnostics.mkdir(exist_ok=True)
@@ -34,6 +36,9 @@ def main():
     with sync_playwright() as p:
         browser = p.chromium.launch(executable_path=r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe", headless=True, args=["--disable-gpu"])
         page = browser.new_page(viewport={"width": 1600, "height": 1000})
+        if args.object_info:
+            schema = args.object_info.read_text(encoding="utf-8")
+            page.route("**/object_info", lambda route: route.fulfill(status=200, content_type="application/json", body=schema))
         submissions, errors = [], []
 
         def intercept_prompt(route):
@@ -53,8 +58,11 @@ def main():
         page.wait_for_function("() => {const app=window.comfyAPI?.app?.app; const types=app?.graph?.constructor?.registered_node_types || window.LiteGraph?.registered_node_types || {}; return ['QWMDetect','QWMResidualDetect','QWMRefineMask','QWMPrepare','QWMComposite','QWMFinal'].every(name => !!types[name]);}", timeout=30000)
         button = page.get_by_role("button", name=re.compile("运行|Run")).first
         button.wait_for(state="visible", timeout=60000)
-        for name in ("qwen21_watermark", "qwen_watermark_detection", "qwen21_watermark_structure"):
-            workflow = json.loads((ROOT / "workflows" / f"{name}.json").read_text(encoding="utf-8"))
+        paths = args.workflow or [ROOT / "workflows" / f"{name}.json" for name in
+                                  ("qwen21_watermark", "qwen_watermark_detection", "qwen21_watermark_structure")]
+        for path in paths:
+            name = path.stem
+            workflow = json.loads(path.read_text(encoding="utf-8"))
             result = page.evaluate("""async (workflow) => {
                 const {app}=await import('/scripts/app.js');
                 await app.loadGraphData(workflow);
@@ -72,7 +80,7 @@ def main():
                         .filter(w=>['text','customtext'].includes(w.type) && typeof w.value!=='string')
                         .map(w=>({id:n.id,name:w.name,value:w.value})))};
             }""", workflow)
-            expected = json.loads((ROOT / "workflows" / f"{name}.api.json").read_text(encoding="utf-8"))
+            expected = json.loads(path.with_suffix(".api.json").read_text(encoding="utf-8"))
             result["roundtrip_differences"] = graph_differences(expected, result["output"])
             result["reload_differences"] = graph_differences(expected, result["reloaded_output"])
             before, errors_before = len(submissions), len(errors)
@@ -85,6 +93,7 @@ def main():
             result["queue_errors"] = errors[errors_before:]
             result["queue_differences"] = graph_differences(expected, submissions[-1]["prompt"]) if len(submissions) > before else []
             result["workflow"] = name
+            result["node_schema_source"] = str(args.object_info) if args.object_info else "running_server"
             results.append(result)
             (diagnostics / f"{name}_frontend_check.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
             if name == "qwen21_watermark":

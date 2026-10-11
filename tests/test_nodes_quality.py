@@ -15,7 +15,7 @@ def nodes(monkeypatch):
     graph = types.ModuleType("comfy_execution.graph")
     graph.ExecutionBlocker = type("ExecutionBlocker", (), {"__init__": lambda self, value: None})
     monkeypatch.setitem(sys.modules, "comfy_execution.graph", graph)
-    root = Path(__file__).resolve().parents[1] / "custom_nodes/ComfyUI-Qwen-Watermark"
+    root = Path(__file__).resolve().parents[1]
     spec = importlib.util.spec_from_file_location("qwm_test", root / "__init__.py", submodule_search_locations=[str(root)])
     module = importlib.util.module_from_spec(spec)
     monkeypatch.setitem(sys.modules, "qwm_test", module)
@@ -99,6 +99,106 @@ def test_detector_parse_failure_is_never_reported_as_clean(nodes, monkeypatch):
     mask, report, _, _ = nodes.QWMDetect().detect(image, "auto_qwen", "{}", 256, 8, 512, "", clip=object())["result"]
     assert not torch.any(mask)
     assert json.loads(report)["status"] == "indeterminate"
+
+
+def test_residual_inspects_distant_overlays_separately_and_maps_corner_remnants(nodes, monkeypatch):
+    image = torch.rand((1, 1000, 800, 3))
+    mask = torch.zeros((1, 1000, 800))
+    mask[:, 30:100, 30:100] = 1
+    mask[:, 780:920, 620:740] = 1
+    sizes = []
+    answers = iter(['{"boxes":[]}', json.dumps({"coordinate_space": "xyxy_1000", "boxes": [
+        {"bbox": [500, 650, 650, 800], "confidence": 0.95, "overlay_type": "irregular_sticker"}]})])
+
+    def detect(clip, tensor, prompt, max_tokens):
+        sizes.append(tuple(tensor.shape[1:3]))
+        return next(answers)
+
+    monkeypatch.setattr(nodes, "_detect_with_clip", detect)
+    residual, report, _, _ = nodes.QWMResidualDetect().detect(image, None, 1024, 24, 384, allowed_mask=mask)["result"]
+    report = json.loads(report)
+    assert report["inspection_rois"] == [[0, 0, 164, 164], [556, 716, 800, 984]]
+    assert sizes == [(164, 164), (268, 244)]
+    assert report["boxes"][0]["source_bbox"] == [678, 890, 715, 931]
+    assert report["status"] == "residual_detected"
+    assert residual[0, 915, 700] == 1
+    assert not residual[0, 500].any()
+
+
+def test_residual_parse_failure_in_one_region_prevents_false_clean_status(nodes, monkeypatch):
+    image = torch.rand((1, 800, 800, 3))
+    mask = torch.zeros((1, 800, 800))
+    mask[:, 10:40, 10:40] = 1
+    mask[:, 700:740, 700:740] = 1
+    answers = iter(['{"boxes":[]}', 'truncated invalid answer'])
+    monkeypatch.setattr(nodes, "_detect_with_clip", lambda *args: next(answers))
+    residual, report, _, _ = nodes.QWMResidualDetect().detect(image, None, 1024, 24, 384, allowed_mask=mask)["result"]
+    assert not residual.any()
+    assert json.loads(report)["status"] == "indeterminate"
+
+
+def test_residual_compares_original_and_repair_in_matching_crops(nodes, monkeypatch):
+    original = torch.full((1, 400, 500, 3), 0.2)
+    image = torch.full_like(original, 0.8)
+    mask = torch.zeros((1, 400, 500))
+    mask[:, 150:200, 200:250] = 1
+
+    def detect(clip, tensors, prompt, max_tokens):
+        assert isinstance(tensors, list) and len(tensors) == 2
+        assert tensors[0].shape == tensors[1].shape == (1, 178, 178, 3)
+        assert torch.allclose(tensors[0], torch.full_like(tensors[0], 0.2))
+        assert torch.allclose(tensors[1], torch.full_like(tensors[1], 0.8))
+        return '{"coordinate_space":"xyxy_1000","boxes":[]}'
+
+    monkeypatch.setattr(nodes, "_detect_with_clip", detect)
+    result = nodes.QWMResidualDetect().detect(image, None, 1024, 24, 384, allowed_mask=mask,
+                                             original_image=original)["result"]
+    assert json.loads(result[1])["reference_comparison"]
+    with pytest.raises(ValueError, match="尺寸一致"):
+        nodes.QWMResidualDetect().detect(image, None, 1024, 24, 384, original_image=original[:, :100])
+
+
+def test_residual_regions_do_not_reuse_generation_buffers(nodes, monkeypatch):
+    captured = []
+    monkeypatch.setattr(nodes, "model_prefetch", types.SimpleNamespace(cleanup_prefetch_queues=captured.clear))
+
+    class Clip:
+        def tokenize(self, prompt, images):
+            return images
+
+        def generate(self, tokens, **kwargs):
+            assert not captured, "The previous region's graph still owns its KV buffers"
+            captured.append(tokens)
+            return []
+
+        def decode(self, output, **kwargs):
+            return '{"boxes":[]}'
+
+    image = torch.rand((1, 800, 800, 3))
+    mask = torch.zeros((1, 800, 800))
+    mask[:, 10:40, 10:40] = 1
+    mask[:, 700:740, 700:740] = 1
+    result = nodes.QWMResidualDetect().detect(image, Clip(), 1024, 24, 384, allowed_mask=mask,
+                                             original_image=image)["result"]
+    assert json.loads(result[1])["status"] == "clean"
+    assert not captured
+
+
+def test_generation_failure_releases_captured_buffers_and_propagates(nodes, monkeypatch):
+    captured = []
+    monkeypatch.setattr(nodes, "model_prefetch", types.SimpleNamespace(cleanup_prefetch_queues=captured.clear))
+
+    class Clip:
+        def tokenize(self, prompt, images):
+            return images
+
+        def generate(self, tokens, **kwargs):
+            captured.append(tokens)
+            raise RuntimeError("generation failed")
+
+    with pytest.raises(RuntimeError, match="generation failed"):
+        nodes._detect_with_clip(Clip(), torch.zeros((1, 32, 32, 3)), "inspect", 64)
+    assert not captured
 
 
 def test_auto_detector_never_shifts_central_logo_by_a_fixed_offset(nodes, monkeypatch):

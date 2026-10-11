@@ -64,6 +64,7 @@ def test_full_workflow_rechecks_residuals_and_runs_second_pass_when_needed():
     assert graph["33"]["inputs"]["images"] == ["37", 0]
     assert graph["37"]["class_type"] == "QWMFinal"
     assert graph["26"]["inputs"]["allowed_mask"] == ["4", 0]
+    assert graph["26"]["inputs"]["original_image"] == ["1", 0]
     assert graph["37"]["inputs"]["residual_mask"] == ["27", 0]
     assert graph["26"]["inputs"]["edit_prompt"] == ""
 
@@ -128,7 +129,7 @@ def test_structure_sampling_freezes_encoded_context_instead_of_an_empty_latent()
         assert graph[encoder]["inputs"]["pixels"] == [crop, 0]
         assert graph[crop]["inputs"]["pre_inpaint"] == "none"
         assert graph[crop]["inputs"]["context_pixels"] == 384
-    assert graph["26"]["inputs"]["enabled"] is False
+    assert graph["26"]["inputs"]["enabled"] is True
 
 
 def test_visible_prompt_reports_are_the_exact_strings_connected_to_edit_encoders():

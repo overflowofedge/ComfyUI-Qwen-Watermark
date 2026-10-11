@@ -320,6 +320,28 @@ def refine_manual_mask(mask, dilation=0, adaptive_dilation=False, dilation_ratio
     return selected.astype(np.float32), report
 
 
+def select_sam_recovery(seed, candidates, scores, seed_score):
+    """Recover a complete cutout without accepting an unrelated larger object."""
+    seed = seed.astype(bool)
+    seed_pixels = int(seed.sum())
+    selected = seed
+    best_score = -1.0
+    if seed_pixels:
+        for candidate, score in zip(candidates, scores):
+            count, labels = cv2.connectedComponents(candidate.astype(np.uint8))
+            anchored = np.unique(labels[seed])
+            anchored = anchored[anchored != 0]
+            candidate = np.isin(labels, anchored) if count > 1 else np.zeros_like(seed)
+            coverage = np.count_nonzero(candidate & seed) / seed_pixels
+            growth = np.count_nonzero(candidate) / seed_pixels
+            if coverage >= 0.9 and 1.02 <= growth <= 2.5 and score >= max(0.8, seed_score - 0.15) and score > best_score:
+                selected = candidate | seed
+                best_score = float(score)
+    recovered = int(np.count_nonzero(selected & ~seed))
+    return selected, {"outline_recovery_applied": bool(recovered), "outline_recovered_pixels": recovered,
+                      "outline_recovery_score": best_score if recovered else None}
+
+
 def refine_sam_candidate(candidate, safety_box, prompt_box, dilation=0, adaptive_dilation=False,
                          dilation_ratio=0.08, recovery_ratio=0.12):
     """Keep a SAM contour that slightly exceeds detection while bounding false selections."""

@@ -30,7 +30,7 @@ def main():
         copy_file(ROOT / "workflows" / name, PACKAGE / "workflows" / name)
     for name in ("run_workflow.py", "run_batch.py", "replay_composite.py"):
         copy_file(ROOT / "scripts" / name, PACKAGE / "scripts" / name)
-    plugin_source = ROOT / "custom_nodes" / "ComfyUI-Qwen-Watermark"
+    plugin_source = ROOT
     plugin_target = PACKAGE / "custom_nodes" / "ComfyUI-Qwen-Watermark"
     for name in ("__init__.py", "nodes.py", "processing.py", "requirements.txt", "README.md"):
         copy_file(plugin_source / name, plugin_target / name)

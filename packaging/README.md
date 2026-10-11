@@ -11,7 +11,7 @@
 ## 包含内容
 
 - `workflows/qwen21_watermark.json`：可导入 ComfyUI 的工作流。
-- `custom_nodes/ComfyUI-Qwen-Watermark/`：工作流必需的六个自定义节点。
+- `custom_nodes/ComfyUI-Qwen-Watermark/`：分享包内的六个自定义节点；Git 仓库本身已将这些文件放在仓库根目录，可直接作为 ComfyUI 插件克隆。
 - `docs/参数与提示词.md`：按场景的参数表、正负向提示词和排错顺序。
 - `install.py`：安装节点、依赖并检查模型。
 - `docs/images/`：公开演示图；不包含用户原图、输出目录或诊断日志。
@@ -25,6 +25,14 @@
 - 8GB 显存可以运行，16GB 以上更宽裕；大图仍会以局部 768px 路线处理。
 
 ## 安装
+
+### 直接从 Git 安装
+
+在 ComfyUI Manager 中选择“Install via Git URL”，粘贴：
+
+`https://github.com/overflowofedge/ComfyUI-Qwen-Watermark.git`
+
+Manager 会把仓库克隆到 `custom_nodes/ComfyUI-Qwen-Watermark`。手动安装时，将仓库根目录放到同一路径，再安装根目录的 `requirements.txt`。
 
 关闭 ComfyUI，在本目录运行：
 
@@ -65,7 +73,9 @@ SAM ViT-B 官方下载地址：<https://dl.fbaipublicfiles.com/segment_anything/
 - 点击运行没有结果：在 LoadImage 节点重新选择图片；若状态为 `no_overlay_detected`，填写 `hint` 或使用手动框/遮罩。
 - 点击运行报 `Cannot read properties of null (reading 'replace')`：重新导入本包修复后的 JSON。旧文件中的文本占位值为 `null`，会触发文本预设插件错误；本包使用空字符串。仅此修复无需重启后端或重装模型。
 - 提示词输入框不显示：编辑提示词由连线传入，在“02 自动定位 / 手动改框”的 `edit_prompt` 填补充要求，“实际送入模型的编辑提示词”显示完整内容。
-- 人物或建筑结构被重画：尝试 `workflows/qwen21_watermark_structure.json`，它扩大上下文、保留原裁剪、使用 VAE 编码和遮罩采样。补充保留姿态/轮廓的指令，并缩小过大的手绘范围；默认单次修复，结果需人工检查。
+- 人物或建筑结构被重画：尝试 `workflows/qwen21_watermark_structure.json`，它扩大上下文、保留原裁剪、使用 VAE 编码和遮罩采样。补充保留姿态/轮廓的指令，并缩小过大的手绘范围；默认开启残留复检与按需二采，人物结构仍需人工检查。
+- 贴纸腿部/脚部漏选：更新节点与 JSON 后重启。新版 SAM 会用贴纸内部定位点补全轮廓，残留复检会分别放大相距较远的选区；查看“细化遮罩预览”，确认贴纸的所有肢体和白边都被覆盖。
+- “07 第一次修复后检查残留”报 `aimdo memory compile error` / CUDA 断言：安装本包 2026-10-08 修补后的节点并重启。该修补在每个区域生成结束后释放 ComfyUI 预取队列和 CUDA 图，防止不同区域复用旧 KV 缓冲区；保持 `enabled=true`。
 - 手绘遮罩仍有残影：确认使用 1.3.0 节点并开启 `adaptive_dilation`；增加 `dilation`，不要用更大的 `feather` 代替遮罩外扩。
 - 自动识别漏掉 Logo：先将 `detection_side` 保持为 1024，并在 `hint` 中描述位置；重要图片仍应查看定位预览并人工确认低置信度结果。
 - 模型下拉框为空：模型目录或文件名不匹配。

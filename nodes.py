@@ -8,6 +8,11 @@ import torch
 from comfy_execution.graph import ExecutionBlocker
 from PIL import Image, ImageDraw
 
+try:
+    import comfy.model_prefetch as model_prefetch
+except ImportError:  # Older ComfyUI versions do not have the memory compiler.
+    model_prefetch = None
+
 from .processing import (
     build_edit_prompt,
     choose_final,
@@ -20,6 +25,7 @@ from .processing import (
     refine_manual_mask,
     refine_sam_candidate,
     route_for_overlay,
+    select_sam_recovery,
 )
 
 try:
@@ -35,12 +41,15 @@ except ImportError:
 
 
 DETECTION_PROMPT = """Locate visible overlays added after this photo was taken: text watermarks, translucent credits, logos/URLs, rectangular solid or patterned patches, mosaics and cutout stickers. Inspect the whole image including edges and corners. Preserve real signs, garment prints, branding and objects that belong to the photographed scene.
-Only report overlays supported by visible pixels; do not invent a target or guess its location. Trace the complete outline including letters, URL, border and shadow. Coordinates must follow the actual visible position, never a fixed central-position rule. Use separate boxes for distant overlays. A rectangular flat patch is rectangle/mosaic; an irregular animal/person/object cutout is irregular_sticker regardless of aspect ratio.
+Only report overlays supported by visible pixels; do not invent a target or guess its location. Trace the complete outline including letters, URL, border and shadow. For cutout stickers include ALL protruding parts: arms, legs, feet, paws, ears and tails, even near the image edge; do not stop at the torso or clothing. Coordinates must follow the actual visible position, never a fixed central-position rule. Use separate boxes for distant overlays. A rectangular flat patch is rectangle/mosaic; an irregular animal/person/object cutout is irregular_sticker regardless of aspect ratio.
 Return ONLY JSON: {"coordinate_space":"xyxy_1000","boxes":[{"label":"what is visibly overlaid","bbox":[left,top,right,bottom],"overlay_type":"text_logo","confidence":0.9,"background":"visible surrounding material"}]}. Coordinates are 0..1000 relative to THIS image. Allowed types: text_logo, translucent_text_logo, rectangle, mosaic, irregular_sticker, unknown. background describes the visible surrounding surface in a few words, such as road, wall, fabric or skin; never guess hidden details. Use confidence below 0.65 when evidence is uncertain. Return {"coordinate_space":"xyxy_1000","boxes":[]} when no overlay is visible. No markdown or explanation."""
 
 
-RESIDUAL_PROMPT = """This crop shows a repaired part of a photograph. Decide whether identifiable letters, logo shapes, sticker borders or other overlay remnants remain. Normal skin texture, real text, garments, straight architecture, natural shadows and smooth color variation are not remnants. Do not invent examples from this instruction. Color seams without an identifiable overlay require color correction, not another generative edit.
+RESIDUAL_PROMPT = """Locate visible post-production overlays or fragments in this photo crop: text, logos, cutout stickers, pixel/bead-art patches, illustration fragments and white cutout borders. Inspect every edge and corner. A previous edit may have removed only part of an overlay; do not assume it succeeded. Isolated cartoon arms, legs, socks, shoes or tails still count as sticker remnants even when the head/body is gone. Distinguish pasted flat or pixel/bead-art texture from photographed real clothing and objects. Preserve real skin, garments, signs, furniture, natural shadows and architecture. Only report evidence visible in the crop; do not invent examples or hidden details. Color seams without an identifiable overlay require color correction, not another generative edit.
 Return ONLY JSON: {"coordinate_space":"xyxy_1000","boxes":[{"label":"specific visible remnant","bbox":[left,top,right,bottom],"overlay_type":"text_logo","confidence":0.9}]}. Coordinates are 0..1000 relative to THIS crop, not the original whole image. Allowed types: text_logo, translucent_text_logo, rectangle, mosaic, irregular_sticker, unknown. If no identifiable overlay remains return {"coordinate_space":"xyxy_1000","boxes":[]}. No markdown, speculative boxes or example lists."""
+
+
+RESIDUAL_REFERENCE_PROMPT = """Image 1 is the original photo crop containing a pasted overlay. Image 2 is a proposed repair of the same crop. Compare them: locate any visible pieces of the pasted overlay that STILL REMAIN in image 2, including isolated legs, feet, white borders or patterned sticker fragments whose head or body was removed. Preserve photographed real clothing, skin and furniture. Report only remnants actually visible in image 2, with coordinates relative to image 2. Return ONLY JSON: {"coordinate_space":"xyxy_1000","boxes":[{"label":"visible remaining overlay fragment","bbox":[left,top,right,bottom],"overlay_type":"irregular_sticker","confidence":0.9}]}. Allowed types: text_logo, translucent_text_logo, rectangle, mosaic, irregular_sticker, unknown. Classify visible text/logo remnants as text_logo, not as a cutout sticker. If no overlay remains return {"coordinate_space":"xyxy_1000","boxes":[]}."""
 
 
 _SAM_CACHE = {}
@@ -112,8 +121,13 @@ def to_tensor(image):
 
 
 def _detect_with_clip(clip, tensor, prompt, max_tokens):
-    tokens = clip.tokenize(prompt, images=[tensor])
-    output = clip.generate(tokens, do_sample=False, max_length=max_tokens, temperature=0.0, seed=0)
+    tokens = clip.tokenize(prompt, images=tensor if isinstance(tensor, list) else [tensor])
+    try:
+        output = clip.generate(tokens, do_sample=False, max_length=max_tokens, temperature=0.0, seed=0)
+    finally:
+        # Each region has new KV buffers; captured graphs must not cross generations.
+        if model_prefetch is not None:
+            model_prefetch.cleanup_prefetch_queues()
     return str(clip.decode(output, skip_special_tokens=True))
 
 
@@ -215,7 +229,8 @@ class QWMResidualDetect:
         }, "optional": {"allowed_mask": ("MASK",),
                         "enabled": ("BOOLEAN", {"default": True}),
                         "first_report": ("STRING", {"default": ""}),
-                        "min_confidence": ("FLOAT", {"default": 0.8, "min": 0, "max": 1})}}
+                        "min_confidence": ("FLOAT", {"default": 0.8, "min": 0, "max": 1}),
+                        "original_image": ("IMAGE",)}}
 
     RETURN_TYPES = ("MASK", "STRING", "IMAGE", "STRING")
     RETURN_NAMES = ("residual_mask", "boxes_json", "preview", "edit_prompt")
@@ -223,9 +238,12 @@ class QWMResidualDetect:
     CATEGORY = "Qwen Watermark"
 
     def detect(self, image, clip, detection_side, expand, max_tokens, edit_prompt="", allowed_mask=None,
-               enabled=True, min_confidence=0.8, first_report=""):
+               enabled=True, min_confidence=0.8, first_report="", original_image=None):
         array = to_array(image)
         height, width = array.shape[:2]
+        original = to_array(original_image) if original_image is not None else None
+        if original is not None and original.shape != array.shape:
+            raise ValueError("复检原图参照必须与修复图尺寸一致。")
         scope = np.ones((height, width), np.float32) if allowed_mask is None else allowed_mask[0].detach().cpu().numpy()
         if scope.shape != (height, width):
             raise ValueError("复检范围遮罩必须与图片尺寸一致。")
@@ -237,37 +255,49 @@ class QWMResidualDetect:
                       "status": "skipped_invalid_first_pass" if invalid else "skipped" if not enabled else "no_overlay_detected"}
             report = json.dumps(result, ensure_ascii=False)
             return {"ui": {"text": [report]}, "result": (torch.zeros((1, height, width)), report, image, edit_prompt)}
-        ys, xs = np.where(scope > 0)
-        x0, y0 = max(0, int(xs.min()) - 64), max(0, int(ys.min()) - 64)
-        x1, y1 = min(width, int(xs.max()) + 65), min(height, int(ys.max()) + 65)
-        inspection_roi = [x0, y0, x1, y1]
-        picture = Image.fromarray(np.clip(array[y0:y1, x0:x1] * 255, 0, 255).astype(np.uint8))
-        picture.thumbnail((detection_side, detection_side), Image.Resampling.LANCZOS)
-        tensor = to_tensor(np.array(picture).astype(np.float32) / 255)
-        raw = _detect_with_clip(clip, tensor, RESIDUAL_PROMPT, max_tokens)
-        try:
-            _, parsed = parse_boxes(raw, x1 - x0, y1 - y0, expand=0, padding_ratio=0)
-        except ValueError as exc:
-            parsed = {"coordinate_space": "pixels", "image_size": [width, height], "boxes": []}
-            warning = str(exc)
-        else:
-            warning = ""
-        for item in parsed["boxes"]:
-            for key in ("bbox", "source_bbox"):
-                b = item[key]
-                item[key] = [b[0] + x0, b[1] + y0, b[2] + x0, b[3] + y0]
-        merged = coerce_rectangular_overlay_types(merge_detection_results([parsed], width, height))
+        inspection = cv2.dilate((scope > 0).astype(np.uint8),
+                                cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (129, 129)))
+        count, _, stats, _ = cv2.connectedComponentsWithStats(inspection)
+        inspection_rois, raw_detections, parsed_results, warnings = [], [], [], []
+        for index in range(1, count):
+            x0, y0, rw, rh, _ = [int(value) for value in stats[index]]
+            x1, y1 = x0 + rw, y0 + rh
+            inspection_rois.append([x0, y0, x1, y1])
+            picture = Image.fromarray(np.clip(array[y0:y1, x0:x1] * 255, 0, 255).astype(np.uint8))
+            picture.thumbnail((detection_side, detection_side), Image.Resampling.LANCZOS)
+            tensor = to_tensor(np.array(picture).astype(np.float32) / 255)
+            prompt = RESIDUAL_PROMPT
+            if original is not None:
+                reference = Image.fromarray(np.clip(original[y0:y1, x0:x1] * 255, 0, 255).astype(np.uint8))
+                reference.thumbnail((detection_side, detection_side), Image.Resampling.LANCZOS)
+                tensor = [to_tensor(np.array(reference).astype(np.float32) / 255), tensor]
+                prompt = RESIDUAL_REFERENCE_PROMPT
+            raw = _detect_with_clip(clip, tensor, prompt, max_tokens)
+            raw_detections.append(raw)
+            try:
+                _, parsed = parse_boxes(raw, rw, rh, expand=0, padding_ratio=0)
+            except ValueError as exc:
+                warnings.append(str(exc))
+                continue
+            for item in parsed["boxes"]:
+                for key in ("bbox", "source_bbox"):
+                    b = item[key]
+                    item[key] = [b[0] + x0, b[1] + y0, b[2] + x0, b[3] + y0]
+            parsed_results.append(parsed)
+        merged = coerce_rectangular_overlay_types(merge_detection_results(parsed_results, width, height))
         mask, result = constrain_residuals(merged, scope, expand=expand, min_confidence=min_confidence)
         if result["boxes"]:
             status = "residual_detected"
-        elif warning or result["uncertain"] or result["rejected_boxes"]:
+        elif warnings or result["uncertain"] or result["rejected_boxes"]:
             status = "indeterminate"
         else:
             status = "clean"
-        result.update({"source": "residual_qwen", "raw_detection": raw, "status": status,
-                       "inspection_roi": inspection_roi})
-        if warning:
-            result["parse_warning"] = warning
+        result.update({"source": "residual_qwen", "raw_detection": raw_detections, "status": status,
+                       "inspection_rois": inspection_rois, "reference_comparison": original is not None})
+        if len(inspection_rois) == 1:
+            result["inspection_roi"] = inspection_rois[0]
+        if warnings:
+            result["parse_warning"] = "; ".join(warnings)
         preview_image = Image.fromarray(np.clip(array * 255, 0, 255).astype(np.uint8))
         draw = ImageDraw.Draw(preview_image)
         for index, item in enumerate(result["boxes"]):
@@ -377,7 +407,19 @@ class QWMRefineMask:
                 if box[2] <= box[0] or box[3] <= box[1]:
                     continue
                 masks, scores, _ = predictor.predict(box=box, multimask_output=True)
-                selected = masks[int(np.argmax(scores))]
+                best = int(np.argmax(scores))
+                selected = masks[best]
+                recovery = {}
+                if item.get("overlay_type") == "irregular_sticker" and item["bbox"] != list(values) and np.any(selected):
+                    # Anchor the wider prompt inside the cutout already found,
+                    # so missed limbs can join it without selecting the person.
+                    distance = cv2.distanceTransform(selected.astype(np.uint8), cv2.DIST_L2, 5)
+                    py, px = np.unravel_index(np.argmax(distance), distance.shape)
+                    candidates, recovery_scores, _ = predictor.predict(
+                        box=np.array(item["bbox"], dtype=np.float32),
+                        point_coords=np.array([[px, py]], dtype=np.float32),
+                        point_labels=np.array([1]), multimask_output=True)
+                    selected, recovery = select_sam_recovery(selected, candidates, recovery_scores, scores[best])
                 selected, selection_report = refine_sam_candidate(
                     selected, item["bbox"], values, dilation=dilation,
                     adaptive_dilation=adaptive_dilation
@@ -385,7 +427,7 @@ class QWMRefineMask:
                 refined = np.maximum(refined, selected)
                 route_counts["sam"] += 1
                 refinements.append({"mask_method": "sam", "overlay_type": item.get("overlay_type", "unknown"),
-                                    **selection_report})
+                                    **selection_report, **recovery})
                 refined_count += 1
             if not np.any(refined):
                 raise RuntimeError("SAM 未生成有效轮廓。")

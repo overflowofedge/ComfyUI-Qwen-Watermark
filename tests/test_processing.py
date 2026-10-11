@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 
-path = Path(__file__).resolve().parents[1] / "custom_nodes/ComfyUI-Qwen-Watermark/processing.py"
+path = Path(__file__).resolve().parents[1] / "processing.py"
 spec = importlib.util.spec_from_file_location("processing", path)
 processing = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(processing)
@@ -41,6 +41,32 @@ def test_wide_sticker_like_patch_is_routed_to_rectangular_box_inpaint():
     assert item["overlay_type"] == "rectangle"
     assert item["mask_method"] == "box"
     assert item["type_correction"] == "wide_flat_patch"
+
+
+def test_sam_outline_recovery_adds_missing_limbs_and_discards_unrelated_islands():
+    seed = np.zeros((160, 120), bool)
+    seed[30:90, 40:80] = True
+    complete = seed.copy()
+    complete[90:135, 48:72] = True
+    complete[5:15, 5:15] = True
+    selected, report = processing.select_sam_recovery(seed, [complete], [0.96], 0.98)
+    assert selected[130, 60]
+    assert not selected[10, 10]
+    assert np.all(selected[seed])
+    assert report["outline_recovered_pixels"] == 45 * 24
+
+
+def test_sam_outline_recovery_rejects_background_and_weak_or_unrelated_candidates():
+    seed = np.zeros((160, 120), bool)
+    seed[30:90, 40:80] = True
+    unrelated = np.zeros_like(seed)
+    unrelated[95:145, 10:50] = True
+    weak = seed.copy()
+    weak[90:135, 48:72] = True
+    selected, report = processing.select_sam_recovery(
+        seed, [np.ones_like(seed), unrelated, weak], [0.99, 0.99, 0.7], 0.98)
+    np.testing.assert_array_equal(selected, seed)
+    assert not report["outline_recovery_applied"]
 
 
 def test_sam_refinement_recovers_contour_outside_detection_box():

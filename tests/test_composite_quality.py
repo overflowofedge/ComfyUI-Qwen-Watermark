@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 
-path = Path(__file__).resolve().parents[1] / "custom_nodes/ComfyUI-Qwen-Watermark/processing.py"
+path = Path(__file__).resolve().parents[1] / "processing.py"
 spec = importlib.util.spec_from_file_location("processing", path)
 p = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(p)

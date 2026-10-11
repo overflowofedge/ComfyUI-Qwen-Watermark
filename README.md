@@ -1,13 +1,27 @@
-# ComfyUI Qwen Watermark 1.3.0
+# ComfyUI-Qwen-Watermark 1.3.0
+
+2026-10-08 残留复检节点修补：每个区域的 Qwen3-VL 生成结束后，通过 ComfyUI 原生接口清理预取队列和 CUDA 图，避免下一块区域复用上一块区域的 KV 缓冲区。出现 `CUDA error: device-side assert triggered` / `aimdo memory compile error` 时，更新本包节点并重启 ComfyUI；无需关闭残留复检。
 
 一套在本机 ComfyUI 运行的去水印工作流：Qwen3-VL 会在一次推理中完成通用扫描和 Logo 专项复核，自动识别文字、半透明 Logo、马赛克、矩形色块和不规则贴纸，再按类型选择矩形框或 SAM，交给 Qwen Image 2.1 做局部修复。第一次修复后还会自动检查残留，并在需要时最多追加一次局部修复；未被遮罩覆盖的像素会被逐像素保护。
 
 > 仅处理你拥有版权或已获得授权的图片。遮挡下完全不存在的真实像素无法被恢复，模型只能根据上下文生成合理内容。
 
+## Git 安装
+
+在 ComfyUI Manager 中打开 “Install via Git URL”，粘贴：
+
+```text
+https://github.com/overflowofedge/ComfyUI-Qwen-Watermark.git
+```
+
+安装完成后重启 ComfyUI，再导入 `workflows/qwen21_watermark.json`。仓库根目录直接包含 ComfyUI 插件入口和依赖文件，Manager 克隆后无需再复制子目录。
+
 
 ## v1.3 贴回与产品化改动
 
-人物肢体、服装边缘或建筑结构被重画时，可导入 `workflows/qwen21_watermark_structure.json`。该版本使用更宽的 384px 上下文、保留原参考图（`pre_inpaint=none`）、原裁剪 VAE 编码和遮罩加噪，限制采样范围；默认仅做一采，最终状态为 `needs_review`。在“02 自动定位 / 手动改框”的 `edit_prompt` 中填写要移除的叠加物与要保留的姿态/线条；“实际送入模型的编辑提示词”会显示完整指令。结构保护版支持已有 v1.3 节点，仅需重新导入 JSON。
+人物肢体、服装边缘或建筑结构被重画时，可导入 `workflows/qwen21_watermark_structure.json`。该版本使用更宽的 384px 上下文、保留原参考图（`pre_inpaint=none`）、原裁剪 VAE 编码和遮罩加噪，限制采样范围；默认开启残留复检，高置信度残片会触发最多一次二采。在“02 自动定位 / 手动改框”的 `edit_prompt` 中填写要移除的叠加物与要保留的姿态/线条；“实际送入模型的编辑提示词”会显示完整指令。复检只判断叠加物残留，人物结构仍需对照原图检查。
+
+针对贴纸腿部、脚部漏选，SAM 在原始紧框之外增加带内部定位点的轮廓补全；候选必须覆盖已有贴纸、置信度足够且面积增长有界，无关连通区域会被剔除。残留复检分别放大相距较远的选区，并比较原图与修复图，帮助识别失去主体的贴纸残腿；旧版无原图输入的工作流仍可运行。此修复需要更新自定义节点、重启 ComfyUI 并重新导入 JSON。
 
 - 贴回不再用 Telea 重建整块选区后混色，也不把带遮挡的原像素混回生成图。全程保持 float32 RGB；软遮罩按修复范围处理。
 - 只在未编辑上下文中估计有界颜色校正，并使用保留样本验证改善；颜色已经匹配时直接保留。边缘只延续选区外颜色差，保留生成纹理。
@@ -67,9 +81,17 @@ python scripts/run_workflow.py "C:\图片\原图.png" --structure-protection --e
 | `qwen_image_2.1_vae_bf16.safetensors` | `models/vae/` |
 | `sam_vit_b_01ec64.pth` | `models/sams/` |
 
-### 2. 安装自定义节点
+### 2. 安装 ComfyUI 插件
 
-`QWMDetect`、`QWMResidualDetect`、`QWMRefineMask`、`QWMPrepare`、`QWMComposite`、`QWMFinal` 是本项目新增的六个自定义节点，不是 ComfyUI 内置节点。只导入 JSON 会出现红色缺失节点；请运行：
+本仓库本身就是 ComfyUI 自定义节点插件。使用 ComfyUI Manager 的“Install via Git URL”粘贴本仓库地址即可；也可以直接克隆到 `ComfyUI/custom_nodes`：
+
+```powershell
+cd "E:\ComfyUI\ComfyUI\custom_nodes"
+git clone https://github.com/overflowofedge/ComfyUI-Qwen-Watermark.git
+python -m pip install -r .\ComfyUI-Qwen-Watermark\requirements.txt
+```
+
+`QWMDetect`、`QWMResidualDetect`、`QWMRefineMask`、`QWMPrepare`、`QWMComposite`、`QWMFinal` 是本项目新增的六个自定义节点，不是 ComfyUI 内置节点。只导入 JSON 会出现红色缺失节点；如果使用本地工作区脚本安装，也可以运行：
 
 ```powershell
 python scripts/install_nodes.py --comfy-root "E:\ComfyUI-aki-v3\ComfyUI-aki-v3\ComfyUI"
@@ -100,7 +122,7 @@ python scripts/run_workflow.py "C:\图片\原图.png" --edit-prompt "保留人�
 - 普通文字 + Logo 回归：两处 `effective_dilation=12`，选区外最大差异 `0`。
 - 不规则贴纸回归：SAM 允许轮廓在安全边界内越过检测框，自动外扩示例为 `32 px`，选区外最大差异 `0`。
 - 手绘遮罩回归：大型区域自适应外扩 `38 px`，选区外最大差异 `0`。
-- Python 回归测试：`59 passed`（v1.3，含文本空值兼容、遮罩采样与实际提示词连接回归）。
+- Python 回归测试：`68 passed`（v1.3，含 Git 根目录插件结构、生成缓存释放、贴纸轮廓补全、分区参照复检、文本空值兼容与遮罩采样回归）。
 
 如果点击运行出现 `Cannot read properties of null (reading 'replace')`，请重新导入已修复的工作流 JSON。旧导出器将已连线的文本控件占位值保存为 `null`，会触发 `comfyui-custom-scripts` 的文本预设序列化错误；修复后的值为 `""`，参数顺序与连线保持正确。仅此修复无需重装模型或重启后端。
 
@@ -109,7 +131,7 @@ python scripts/run_workflow.py "C:\图片\原图.png" --edit-prompt "保留人�
 ## 项目结构
 
 ```text
-custom_nodes/ComfyUI-Qwen-Watermark/   六个自定义节点
+__init__.py, nodes.py, processing.py  ComfyUI 插件入口与六个自定义节点
 workflows/                              可导入的 UI/API 工作流
 scripts/                                安装、运行、构建和验证脚本
 packaging/                              分享包说明、安装器和许可证
@@ -120,4 +142,4 @@ tests/                                  处理逻辑和工作流结构测试
 
 ## 许可证
 
-仓库代码按 [`packaging/LICENSE`](packaging/LICENSE) 发布。Qwen、SAM 及其他模型权重遵循各自许可证；本项目不重新分发模型权重。
+仓库代码按 [`LICENSE`](LICENSE) 发布。Qwen、SAM 及其他模型权重遵循各自许可证；本项目不重新分发模型权重。
