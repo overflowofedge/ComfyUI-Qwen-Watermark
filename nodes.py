@@ -137,15 +137,23 @@ class QWMDetect:
         return {"required": {
             "image": ("IMAGE",),
             "mode": (["auto_qwen", "manual_boxes", "manual_mask"],),
-            "boxes_json": ("STRING", {"default": '{"coordinate_space":"pixels","boxes":[]}', "multiline": True}),
-            "detection_side": ("INT", {"default": 1024, "min": 256, "max": 2048, "step": 32}),
-            "expand": ("INT", {"default": 8, "min": 0, "max": 64}),
-            "max_tokens": ("INT", {"default": 512, "min": 64, "max": 2048}),
-            "hint": ("STRING", {"default": "", "multiline": True}),
-            "edit_prompt": ("STRING", {"default": "", "multiline": True}),
-            "padding_ratio": ("FLOAT", {"default": 0.35, "min": 0, "max": 1, "step": 0.05}),
+            "boxes_json": ("STRING", {"default": '{"coordinate_space":"pixels","boxes":[]}', "multiline": True,
+                                         "tooltip": "手动框 JSON。坐标可用像素、xyxy_1000 或 normalized；auto_qwen 模式会用模型输出覆盖它。"}),
+            "detection_side": ("INT", {"default": 1024, "min": 256, "max": 2048, "step": 32,
+                                         "tooltip": "送入 Qwen3-VL 的定位图最长边。越大越容易看清小 Logo，显存和耗时也随之增加。"}),
+            "expand": ("INT", {"default": 8, "min": 0, "max": 64,
+                                 "tooltip": "矩形框向外扩的像素数，用于覆盖描边、阴影和接缝。它只影响 box 范围，不负责羽化。"}),
+            "max_tokens": ("INT", {"default": 512, "min": 64, "max": 2048,
+                                     "tooltip": "定位模型输出 JSON 的最大 token 数。多水印或复杂描述时增加；普通图片保持 512。"}),
+            "hint": ("STRING", {"default": "", "multiline": True,
+                                  "tooltip": "给定位模型的补充线索，例如“左下角灰色文字”和“右下角圆形 Logo”；不改变编辑指令。"}),
+            "edit_prompt": ("STRING", {"default": "", "multiline": True,
+                                         "tooltip": "给 Qwen Image 的补充编辑要求。写保留结构、材质和位置约束；不要只写“去水印”。"}),
+            "padding_ratio": ("FLOAT", {"default": 0.35, "min": 0, "max": 1, "step": 0.05,
+                                          "tooltip": "自动检测框按比例扩边；程序会按水印类型设上限。手动框模式不使用此比例。"}),
         }, "optional": {"clip": ("CLIP",), "manual_mask": ("MASK",),
-                        "min_confidence": ("FLOAT", {"default": 0.65, "min": 0, "max": 1})}}
+                        "min_confidence": ("FLOAT", {"default": 0.65, "min": 0, "max": 1,
+                                                         "tooltip": "保留自动候选的最低置信度。调高可减少误检，调低可减少低对比水印漏检；低于 0.65 的结果应人工确认。"})}}
 
     RETURN_TYPES = ("MASK", "STRING", "IMAGE", "STRING")
     RETURN_NAMES = ("watermark_mask", "boxes_json", "preview", "edit_prompt")
@@ -222,14 +230,20 @@ class QWMResidualDetect:
         return {"required": {
             "image": ("IMAGE",),
             "clip": ("CLIP",),
-            "detection_side": ("INT", {"default": 1024, "min": 256, "max": 2048, "step": 32}),
-            "expand": ("INT", {"default": 24, "min": 0, "max": 96}),
-            "max_tokens": ("INT", {"default": 384, "min": 64, "max": 2048}),
-            "edit_prompt": ("STRING", {"default": "", "multiline": True}),
+            "detection_side": ("INT", {"default": 1024, "min": 256, "max": 2048, "step": 32,
+                                         "tooltip": "残留分区送入 Qwen3-VL 的最长边。小残片漏检时提高到 1280；8GB 显存保持 1024。"}),
+            "expand": ("INT", {"default": 24, "min": 0, "max": 96,
+                                 "tooltip": "残留候选向外扩的安全边，随后与第一次修复范围取交集。它不会扩大到原遮罩之外。"}),
+            "max_tokens": ("INT", {"default": 384, "min": 64, "max": 2048,
+                                     "tooltip": "残留复检 JSON 的最大 token 数。只检查残片，通常 384 足够。"}),
+            "edit_prompt": ("STRING", {"default": "", "multiline": True,
+                                         "tooltip": "二采追加的局部修复要求。只描述残留和需要保持的结构；留空使用自动提示词。"}),
         }, "optional": {"allowed_mask": ("MASK",),
-                        "enabled": ("BOOLEAN", {"default": True}),
+                        "enabled": ("BOOLEAN", {"default": True,
+                                                 "tooltip": "是否运行第一次修复后的残留复检。关闭后不会触发二采，最终报告会保留 needs_review。"}),
                         "first_report": ("STRING", {"default": ""}),
-                        "min_confidence": ("FLOAT", {"default": 0.8, "min": 0, "max": 1}),
+                        "min_confidence": ("FLOAT", {"default": 0.8, "min": 0, "max": 1,
+                                                         "tooltip": "触发二采的残留置信度阈值。默认 0.8，只处理高置信度残片，避免把自然纹理再次生成。"}),
                         "original_image": ("IMAGE",)}}
 
     RETURN_TYPES = ("MASK", "STRING", "IMAGE", "STRING")
@@ -319,10 +333,13 @@ class QWMRefineMask:
             "mask": ("MASK",),
             "boxes_json": ("STRING", {"multiline": True}),
             "method": (["auto", "sam", "box"],),
-            "sam_model": ("STRING", {"default": _sam_model_choices()[0]}),
+            "sam_model": ("STRING", {"default": _sam_model_choices()[0],
+                                       "tooltip": "SAM 权重文件名；放在 ComfyUI/models/sams/。"}),
             "device": (["auto", "cpu", "cuda"],),
-            "dilation": ("INT", {"default": 12, "min": 0, "max": 64}),
-            "adaptive_dilation": ("BOOLEAN", {"default": True}),
+            "dilation": ("INT", {"default": 12, "min": 0, "max": 64,
+                                  "tooltip": "SAM 或手绘遮罩向外扩的基础像素数，用于覆盖白边、透明边和投影。它不等于 feather。"}),
+            "adaptive_dilation": ("BOOLEAN", {"default": True,
+                                                 "tooltip": "按大型贴纸短边自动增加外扩，最多 64px。人物、头发或建筑边缘敏感时可关闭。"}),
         }}
 
     RETURN_TYPES = ("MASK", "IMAGE", "STRING")
@@ -457,12 +474,17 @@ class QWMPrepare:
     @classmethod
     def INPUT_TYPES(cls):
         return {"required": {"image": ("IMAGE",), "mask": ("MASK",),
-                             "context_pixels": ("INT", {"default": 96, "min": 0, "max": 2048}),
-                             "max_side": ("INT", {"default": 768, "min": 256, "max": 2048, "step": 32}),
+                             "context_pixels": ("INT", {"default": 96, "min": 0, "max": 2048,
+                                                          "tooltip": "裁剪区四周保留的原图上下文像素。普通文字用 96；贴近人体或建筑结构用 256~384。"}),
+                             "max_side": ("INT", {"default": 768, "min": 256, "max": 2048, "step": 32,
+                                                   "tooltip": "局部裁剪送入编辑模型的最长边。8GB 显存建议 768；细节复杂且显存足够时用 1024。"}),
                              "pre_inpaint": (["auto", "none", "telea", "ns"],),
-                             "inpaint_radius": ("INT", {"default": 3, "min": 1, "max": 15})},
-                "optional": {"edit_prompt": ("STRING", {"default": "", "multiline": True}),
-                             "boxes_json": ("STRING", {"default": "", "multiline": True})}}
+                             "inpaint_radius": ("INT", {"default": 3, "min": 1, "max": 15,
+                                                          "tooltip": "Telea / NS 预清理的半径，仅作用于遮罩内。色块或贴纸用 3~5；纹理复杂时可关闭预清理。"})},
+                "optional": {"edit_prompt": ("STRING", {"default": "", "multiline": True,
+                                                              "tooltip": "裁剪节点接收的编辑要求；通常由“02 自动定位 / 手动改框”连线，不需手动填写。"}),
+                             "boxes_json": ("STRING", {"default": "", "multiline": True,
+                                                          "tooltip": "检测报告 JSON，用于按 overlay_type 选择预清理策略；通常由定位或残留节点连线。"})}}
 
     RETURN_TYPES = ("IMAGE", "MASK", "QWM_GEOMETRY", "STRING", "STRING")
     RETURN_NAMES = ("reference_crop", "crop_mask", "geometry", "status", "edit_prompt")
@@ -533,9 +555,12 @@ class QWMComposite:
     def INPUT_TYPES(cls):
         return {"required": {"original": ("IMAGE",), "edited_crop": ("IMAGE",), "mask": ("MASK",),
                              "geometry": ("QWM_GEOMETRY",),
-                             "feather": ("INT", {"default": 6, "min": 0, "max": 64}),
-                             "align": ("BOOLEAN", {"default": True})},
-                "optional": {"color_match": ("BOOLEAN", {"default": True})}}
+                             "feather": ("INT", {"default": 6, "min": 0, "max": 64,
+                                                  "tooltip": "贴回边缘的颜色过渡宽度（原图像素）。只缓和边界色差，不能补齐漏选范围；残影应调 expand/dilation。"}),
+                             "align": ("BOOLEAN", {"default": True,
+                                                    "tooltip": "根据遮罩外上下文估计小幅位移并对齐。报告出现 warning 时应人工检查。"})},
+                "optional": {"color_match": ("BOOLEAN", {"default": True,
+                                                             "tooltip": "用遮罩外配对像素做有限 RGB 校正，减少局部色漂；不把原遮挡像素混回生成结果。"})}}
 
     RETURN_TYPES = ("IMAGE", "IMAGE", "STRING")
     RETURN_NAMES = ("restored_image", "comparison", "report")
@@ -627,6 +652,11 @@ class QWMFinal:
 NODE_CLASS_MAPPINGS = {"QWMDetect": QWMDetect, "QWMResidualDetect": QWMResidualDetect, "QWMFinal": QWMFinal,
                        "QWMRefineMask": QWMRefineMask, "QWMPrepare": QWMPrepare,
                        "QWMComposite": QWMComposite}
-NODE_DISPLAY_NAME_MAPPINGS = {"QWMFinal": "去水印最终结果 / 质量检查", "QWMDetect": "Qwen 水印自动定位 / 手动选区", "QWMRefineMask": "SAM 不规则轮廓细化",
-                              "QWMResidualDetect": "Qwen 水印残留复检", "QWMPrepare": "水印局部裁剪（保存坐标）",
-                              "QWMComposite": "水印对齐回贴（保护原图）"}
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "QWMDetect": "02 自动定位 / 手动改框",
+    "QWMRefineMask": "03 不规则轮廓细化（SAM）",
+    "QWMPrepare": "04 裁剪并记录坐标",
+    "QWMComposite": "06 对齐 / 保色贴回",
+    "QWMResidualDetect": "07 第一次修复后检查残留",
+    "QWMFinal": "12 质量检查 / 选择最终结果",
+}

@@ -62,10 +62,10 @@ SAM ViT-B 官方下载地址：<https://dl.fbaipublicfiles.com/segment_anything/
 1. 导入 `workflows/qwen21_watermark.json`。
 2. 在 `01 上传原图` 节点重新选择本机图片。
 3. 默认使用 `auto_qwen + auto`，工作流会按类型自动选择矩形框或 SAM；定位错误时再使用 `manual_boxes` / `manual_mask`。
-4. 使用手绘遮罩时，在 LoadImage 的遮罩编辑器绘制白色区域，将 `MASK` 输出连接到 `QWMDetect.manual_mask`，并把模式设为 `manual_mask`。
+4. 使用手绘遮罩时，在 LoadImage 的遮罩编辑器绘制白色区域，将 `MASK` 输出连接到 **02 自动定位 / 手动改框**（`QWMDetect`）的 `manual_mask`，并把模式设为 `manual_mask`。
 5. 运行后查看 `定位预览`、`细化遮罩预览`、`残留复检` 和左右对比图。
 
-`manual_mask`、SAM 路径会应用 `dilation`；大型贴纸建议开启 `adaptive_dilation`。`box` 路径通过检测节点的 `expand` 扩大范围，`dilation` 对它不生效。
+`manual_mask`、SAM 路径会应用 **03 不规则轮廓细化（SAM）**（`QWMRefineMask`）的 `dilation`；大型贴纸建议开启 `adaptive_dilation`。`box` 路径通过 **02 自动定位 / 手动改框**（`QWMDetect`）的 `expand` 扩大范围，`dilation` 对它不生效。参数逐项说明和测试素材见 [`docs/参数与提示词.md`](../docs/参数与提示词.md)。
 
 ## 常见问题
 

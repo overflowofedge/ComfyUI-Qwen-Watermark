@@ -57,6 +57,8 @@ python scripts/run_workflow.py "C:\图片\原图.png" --structure-protection --e
 
 ![ComfyUI 工作流节点图](docs/images/workflow-overview.png)
 
+仓库内的参数回归素材：`samples/demo_watermarked.png`（文字 + Logo）、`samples/demo_solid.png`（纯色色块）、`samples/demo_pattern.png`（矩形花纹）和 `samples/demo_exact_mask.png`（手绘遮罩）。前三张对应的 `*_boxes.json` 可直接填入“02 自动定位 / 手动改框”的 `boxes_json`；手绘图连接 `MASK` 输入。不同素材的参数、预期遮罩和检查点见 [节点参数与调参指南](docs/参数与提示词.md#用仓库测试图片验证参数)。
+
 ## 适用范围
 
 | 遮挡类型 | 推荐路径 | 关键设置 |
@@ -91,7 +93,7 @@ git clone https://github.com/overflowofedge/ComfyUI-Qwen-Watermark.git
 python -m pip install -r .\ComfyUI-Qwen-Watermark\requirements.txt
 ```
 
-`QWMDetect`、`QWMResidualDetect`、`QWMRefineMask`、`QWMPrepare`、`QWMComposite`、`QWMFinal` 是本项目新增的六个自定义节点，不是 ComfyUI 内置节点。只导入 JSON 会出现红色缺失节点；如果使用本地工作区脚本安装，也可以运行：
+本项目新增六个自定义节点，不是 ComfyUI 内置节点。搜索时使用画布标题；括号内是源码类名：`02 自动定位 / 手动改框`（`QWMDetect`）、`03 不规则轮廓细化（SAM）`（`QWMRefineMask`）、`04 裁剪并记录坐标`（`QWMPrepare`）、`06 对齐 / 保色贴回`（`QWMComposite`）、`07 第一次修复后检查残留`（`QWMResidualDetect`）、`12 质量检查 / 选择最终结果`（`QWMFinal`）。`QWMRefineMask`、`QWMPrepare` 和 `QWMComposite` 在二采区域会各出现一次，按画布编号区分。只导入 JSON 会出现红色缺失节点；如果使用本地工作区脚本安装，也可以运行：
 
 ```powershell
 python scripts/install_nodes.py --comfy-root "E:\ComfyUI-aki-v3\ComfyUI-aki-v3\ComfyUI"
