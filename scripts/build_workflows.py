@@ -77,6 +77,11 @@ def api_graph():
 def structure_graph():
     """Keep the native Qwen references, but also constrain sampling spatially."""
     graph = copy.deepcopy(api_graph())
+    # Lower denoise keeps visible anatomy and texture stable when a sticker
+    # covers a large, structure-sensitive area. The residual pass is more
+    # conservative because it should only remove leftover overlay pixels.
+    graph["12"]["inputs"]["denoise"] = 0.65
+    graph["30"]["inputs"]["denoise"] = 0.55
     for key in ("5", "28"):
         graph[key]["inputs"].update(context_pixels=384, pre_inpaint="none")
     # Encode actual pixels: masking the encoder's empty latent would freeze a

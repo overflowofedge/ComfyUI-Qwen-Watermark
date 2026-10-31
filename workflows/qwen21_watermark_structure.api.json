@@ -167,7 +167,7 @@
       "cfg": 1.0,
       "sampler_name": "euler_ancestral",
       "scheduler": "sgm_uniform",
-      "denoise": 1.0
+      "denoise": 0.65
     }
   },
   "13": {
@@ -435,7 +435,7 @@
       "cfg": 1.0,
       "sampler_name": "euler_ancestral",
       "scheduler": "sgm_uniform",
-      "denoise": 1.0
+      "denoise": 0.55
     }
   },
   "31": {

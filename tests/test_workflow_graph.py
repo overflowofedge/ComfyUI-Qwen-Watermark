@@ -129,6 +129,8 @@ def test_structure_sampling_freezes_encoded_context_instead_of_an_empty_latent()
         assert graph[encoder]["inputs"]["pixels"] == [crop, 0]
         assert graph[crop]["inputs"]["pre_inpaint"] == "none"
         assert graph[crop]["inputs"]["context_pixels"] == 384
+    assert graph["12"]["inputs"]["denoise"] == 0.65
+    assert graph["30"]["inputs"]["denoise"] == 0.55
     assert graph["26"]["inputs"]["enabled"] is True
 
 

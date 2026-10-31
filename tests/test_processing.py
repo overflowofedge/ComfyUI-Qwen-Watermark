@@ -326,6 +326,8 @@ def test_edit_prompt_accepts_user_instruction_without_dropping_safety_rules():
     )
     assert "完整移除文字水印" in prompt
     assert "用户编辑指令：保留人物脸部和衣服纹理，只修复右下角。" in prompt
+    assert "保持身体部位数量、姿态、连接关系" in prompt
+    assert "不要猜测或绘制具体敏感细节" in prompt
 
 
 def test_manual_selection_prompt_explicitly_removes_full_overlay_halo():
