@@ -20,6 +20,7 @@ from .processing import (
     constrain_residuals,
     coerce_rectangular_overlay_types,
     merge_detection_results,
+    normalize_overlay_type,
     parse_boxes,
     prepare_crop,
     refine_manual_mask,
@@ -337,7 +338,7 @@ class QWMRefineMask:
                                        "tooltip": "SAM 权重文件名；放在 ComfyUI/models/sams/。"}),
             "device": (["auto", "cpu", "cuda"],),
             "dilation": ("INT", {"default": 12, "min": 0, "max": 64,
-                                  "tooltip": "SAM 或手绘遮罩向外扩的基础像素数，用于覆盖白边、透明边和投影。它不等于 feather。"}),
+                                  "tooltip": "SAM 或手绘遮罩向外扩的基础像素数，用于覆盖白边、透明边和投影。不规则贴纸开启自适应时会按短边再扩大安全边，最多 64px；它不等于 feather。"}),
             "adaptive_dilation": ("BOOLEAN", {"default": True,
                                                  "tooltip": "按大型贴纸短边自动增加外扩，最多 64px。人物、头发或建筑边缘敏感时可关闭。"}),
         }}
@@ -437,9 +438,14 @@ class QWMRefineMask:
                         point_coords=np.array([[px, py]], dtype=np.float32),
                         point_labels=np.array([1]), multimask_output=True)
                     selected, recovery = select_sam_recovery(selected, candidates, recovery_scores, scores[best])
+                # Sticker shadows and antialiased borders are often outside
+                # the tight source box. Give irregular stickers a wider
+                # proportional halo while keeping the existing safety guard.
+                overlay_type = normalize_overlay_type(item.get("overlay_type"))
+                halo_ratio = 0.12 if overlay_type in {"irregular_sticker", "unknown"} else 0.08
                 selected, selection_report = refine_sam_candidate(
                     selected, item["bbox"], values, dilation=dilation,
-                    adaptive_dilation=adaptive_dilation
+                    adaptive_dilation=adaptive_dilation, dilation_ratio=halo_ratio
                 )
                 refined = np.maximum(refined, selected)
                 route_counts["sam"] += 1

@@ -59,6 +59,32 @@ def test_auto_prefill_preserves_translucent_context_and_clears_opaque_patches(no
     assert patch[2]["pre_inpaint"] == "telea"
 
 
+def test_irregular_sticker_refinement_uses_wider_halo_ratio(nodes, monkeypatch):
+    class Predictor:
+        def set_image(self, image):
+            self.shape = image.shape[:2]
+
+        def predict(self, box, multimask_output=True, point_coords=None, point_labels=None):
+            selected = np.zeros(self.shape, dtype=bool)
+            selected[150:650, 200:600] = True
+            return np.stack([selected]), np.array([0.98], dtype=np.float32), None
+
+    monkeypatch.setattr(nodes, "_load_sam", lambda model, device: (Predictor(), "cpu"))
+    image = torch.zeros((1, 900, 900, 3), dtype=torch.float32)
+    mask = torch.zeros((1, 900, 900), dtype=torch.float32)
+    mask[:, 120:680, 170:630] = 1
+    boxes = json.dumps({"coordinate_space": "pixels", "boxes": [{
+        "bbox": [170, 120, 630, 680], "source_bbox": [200, 150, 600, 650],
+        "overlay_type": "irregular_sticker", "confidence": 0.98,
+    }]})
+    result = nodes.QWMRefineMask().refine(
+        image, mask, boxes, "auto", "sam_vit_b_01ec64.pth", "auto", 12, True
+    )["result"]
+    status = json.loads(result[2])
+    assert status["refinements"][0]["dilation_ratio"] == 0.12
+    assert status["refinements"][0]["effective_dilation"] == 48
+
+
 def test_empty_final_does_not_request_model_branches_and_returns_original(nodes):
     image = torch.rand((1, 32, 48, 3))
     mask = torch.zeros((1, 32, 48))

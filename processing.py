@@ -397,7 +397,7 @@ def refine_sam_candidate(candidate, safety_box, prompt_box, dilation=0, adaptive
         selected = bounded
 
     report = {"safety_box": safety, "guard_box": guard, "recovery_margin": recovery_margin,
-              "effective_dilation": effective_dilation,
+              "dilation_ratio": dilation_ratio, "effective_dilation": effective_dilation,
               "recovered_outside_safety_pixels": recovered_pixels,
               "guard_clipped_pixels": max(0, clipped_pixels)}
     return selected.astype(np.float32), report

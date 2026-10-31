@@ -108,6 +108,17 @@ def test_sam_refinement_adapts_halo_to_large_irregular_overlay():
     assert small_report["effective_dilation"] == 12
 
 
+def test_sam_refinement_can_use_wider_sticker_halo_ratio():
+    candidate = np.zeros((900, 900), np.uint8)
+    candidate[150:650, 200:600] = 1
+    _, report = processing.refine_sam_candidate(
+        candidate, safety_box=[170, 120, 630, 680], prompt_box=[200, 150, 600, 650],
+        dilation=12, adaptive_dilation=True, dilation_ratio=0.12
+    )
+    assert report["effective_dilation"] == 48
+    assert report["dilation_ratio"] == 0.12
+
+
 def test_manual_mask_applies_adaptive_halo_for_overlay_edges_and_shadow():
     mask = np.zeros((900, 900), np.float32)
     mask[150:650, 200:600] = 1
